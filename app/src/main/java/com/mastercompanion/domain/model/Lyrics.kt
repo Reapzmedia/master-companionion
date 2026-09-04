@@ -51,8 +51,9 @@ data class TrackLyrics(
                 LyricLine(40000L, "Taylor Gang or die, that's the business"),
                 LyricLine(44000L, "Black and yellow, black and yellow"),
                 LyricLine(48000L, "Black and yellow, black and yellow"),
-                LyricLine(52000L, "Hear the engine revvin', scream at the light"),
+                LyricLine(54000L, "Hear the engine revvin', scream at the light"),
                 LyricLine(56000L, "See me when you see me, yeah, everything nice")
+            )
         )
 
         /**

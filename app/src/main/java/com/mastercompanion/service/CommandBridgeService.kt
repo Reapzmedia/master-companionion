@@ -16,8 +16,14 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import timber.log.Timber
 
+import com.mastercompanion.server.CommandBridgeServer
+import javax.inject.Inject
+
 @AndroidEntryPoint
 class CommandBridgeService : Service() {
+
+    @Inject
+    lateinit var server: CommandBridgeServer
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -25,6 +31,7 @@ class CommandBridgeService : Service() {
         super.onCreate()
         Timber.i("CommandBridgeService created")
         startForeground(NOTIFICATION_ID, buildNotification())
+        server.start(port = 8420)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -34,6 +41,7 @@ class CommandBridgeService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        server.stop()
         serviceScope.cancel()
         Timber.i("CommandBridgeService destroyed")
     }

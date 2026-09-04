@@ -15,3 +15,13 @@ data class CommandResponse(
     val action: String? = null,
     val timestamp: Long = System.currentTimeMillis()
 )
+
+@Serializable
+data class CommandDefinition(
+    val action: String,
+    val name: String,
+    val description: String,
+    val category: String,
+    val requiresRoot: Boolean
+)
+

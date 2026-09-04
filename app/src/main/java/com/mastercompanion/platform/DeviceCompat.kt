@@ -61,4 +61,6 @@ object DeviceCompat {
         "/sys/class/power_supply/battery/status",
         "/sys/class/power_supply/Battery/status"
     )
+
+    fun getChargingControlPath(): String = candidateChargingControlPaths.first()
 }

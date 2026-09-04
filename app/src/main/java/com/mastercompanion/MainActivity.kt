@@ -16,13 +16,21 @@ import androidx.compose.ui.graphics.Color
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.lifecycleScope
+import com.mastercompanion.data.spotify.SpotifyAuthManager
+import com.mastercompanion.ui.dashboard.DashboardHost
 import com.mastercompanion.ui.theme.MasterCompanionTheme
 import com.mastercompanion.ui.theme.PureBlack
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 import timber.log.Timber
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var spotifyAuthManager: SpotifyAuthManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,6 +63,11 @@ class MainActivity : ComponentActivity() {
             val code = uri.getQueryParameter("code")
             val error = uri.getQueryParameter("error")
             Timber.i("Spotify OAuth Callback received. code present: ${code != null}, error: $error")
+            if (!code.isNullOrBlank()) {
+                lifecycleScope.launch {
+                    spotifyAuthManager.handleAuthCallback(code)
+                }
+            }
         }
     }
 
