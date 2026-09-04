@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import java.util.UUID
 import javax.inject.Inject
@@ -33,6 +34,7 @@ class PreferencesRepository @Inject constructor(
         val KEY_PC_IP = stringPreferencesKey("pc_ip")
         val KEY_PC_MAC = stringPreferencesKey("pc_mac")
         val KEY_SPOTIFY_CLIENT_ID = stringPreferencesKey("spotify_client_id")
+        val KEY_SPOTIFY_CODE_VERIFIER = stringPreferencesKey("spotify_code_verifier")
         val KEY_SPOTIFY_ACCESS_TOKEN = stringPreferencesKey("spotify_access_token")
         val KEY_SPOTIFY_REFRESH_TOKEN = stringPreferencesKey("spotify_refresh_token")
         val KEY_SPOTIFY_EXPIRES_AT = longPreferencesKey("spotify_expires_at")
@@ -189,6 +191,14 @@ class PreferencesRepository @Inject constructor(
                 prefs[KEY_SPOTIFY_SCOPES] = scope
             }
         }
+    }
+
+    suspend fun saveSpotifyCodeVerifier(verifier: String) {
+        dataStore.edit { it[KEY_SPOTIFY_CODE_VERIFIER] = verifier }
+    }
+
+    suspend fun getSpotifyCodeVerifier(): String? {
+        return dataStore.data.map { it[KEY_SPOTIFY_CODE_VERIFIER] }.firstOrNull()
     }
 
     suspend fun clearSpotifyTokens() {

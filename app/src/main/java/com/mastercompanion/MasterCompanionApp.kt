@@ -14,10 +14,8 @@ class MasterCompanionApp : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        // Plant Timber debug tree in debug builds
-        if (BuildConfig.DEBUG) {
-            Timber.plant(Timber.DebugTree())
-        }
+        // Plant Timber tree for full observability
+        Timber.plant(Timber.DebugTree())
 
         Timber.i("MasterCompanion application starting...")
         createNotificationChannels()

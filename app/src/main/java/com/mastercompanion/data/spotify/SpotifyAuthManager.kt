@@ -43,6 +43,7 @@ class SpotifyAuthManager @Inject constructor(
 
         val verifier = generateCodeVerifier()
         codeVerifier = verifier
+        preferencesRepository.saveSpotifyCodeVerifier(verifier)
         val challenge = generateCodeChallenge(verifier)
 
         val authUri = Uri.parse("https://accounts.spotify.com/authorize").buildUpon()
@@ -65,7 +66,8 @@ class SpotifyAuthManager @Inject constructor(
      * Handles authorization code from deep-link callback and exchanges for tokens.
      */
     suspend fun handleAuthCallback(code: String): Result<Unit> {
-        val verifier = codeVerifier ?: return Result.failure(IllegalStateException("No code_verifier found. Please restart auth."))
+        val verifier = codeVerifier ?: preferencesRepository.getSpotifyCodeVerifier()
+            ?: return Result.failure(IllegalStateException("No code_verifier found. Please restart auth."))
         val clientId = preferencesRepository.spotifyClientIdFlow.first().ifBlank { DEFAULT_CLIENT_ID }
 
         return try {
