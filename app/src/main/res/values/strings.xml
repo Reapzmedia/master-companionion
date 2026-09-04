@@ -1,0 +1,33 @@
+<resources>
+    <string name="app_name">Master Companion</string>
+    <string name="dashboard_title">Standby Dashboard</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_audio">Audio</string>
+    <string name="nav_system">System</string>
+    <string name="nav_settings">Settings</string>
+    
+    <!-- Battery & Power -->
+    <string name="battery_status_charging">Charging</string>
+    <string name="battery_status_discharging">Discharging</string>
+    <string name="battery_status_idle">Idle</string>
+    <string name="battery_status_bypass">Docked (Limit Active)</string>
+    <string name="battery_charge_limit_label">Charge Limit (80%)</string>
+    
+    <!-- Audio -->
+    <string name="audio_stream_connected">Receiving Stream</string>
+    <string name="audio_stream_idle">Waiting for PC Audio...</string>
+    <string name="audio_stream_error">Audio Error</string>
+    
+    <!-- Spotify -->
+    <string name="spotify_not_connected">Spotify Disconnected</string>
+    <string name="spotify_no_track">No Track Playing</string>
+    
+    <!-- Command Bridge -->
+    <string name="server_running">Bridge Active</string>
+    <string name="server_stopped">Bridge Stopped</string>
+    
+    <!-- Notifications -->
+    <string name="battery_guard_channel">Battery Guard Service</string>
+    <string name="command_bridge_channel">Command Bridge Service</string>
+    <string name="audio_receiver_channel">Audio Receiver Service</string>
+</resources>

@@ -1,0 +1,12 @@
+<resources>
+    <style name="Theme.MasterCompanion" parent="android:Theme.Material.NoActionBar">
+        <!-- True black background for OLED longevity and standby clock styling -->
+        <item name="android:windowBackground">@color/bg_pure_black</item>
+        <item name="android:colorBackground">@color/bg_pure_black</item>
+        <item name="android:statusBarColor">@color/bg_pure_black</item>
+        <item name="android:navigationBarColor">@color/bg_pure_black</item>
+        
+        <!-- Enable full edge-to-edge drawing -->
+        <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="p" xmlns:tools="http://schemas.android.com/tools">shortEdges</item>
+    </style>
+</resources>

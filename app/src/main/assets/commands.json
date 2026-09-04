@@ -1,0 +1,44 @@
+[
+  {
+    "action": "toggle_charge_limit",
+    "name": "Toggle Charge Limit",
+    "description": "Enables or disables 80% battery bypass charging via sysfs",
+    "category": "battery",
+    "requiresRoot": true
+  },
+  {
+    "action": "navigate",
+    "name": "Switch Dashboard Page",
+    "description": "Navigates between Home, Audio, System, and Settings pages",
+    "category": "navigation",
+    "requiresRoot": false
+  },
+  {
+    "action": "wol",
+    "name": "Wake-on-LAN",
+    "description": "Sends a UDP Magic Packet to wake up the desktop PC",
+    "category": "network",
+    "requiresRoot": false
+  },
+  {
+    "action": "audio_toggle",
+    "name": "Toggle Audio Stream",
+    "description": "Starts or stops listening for PC UDP audio stream",
+    "category": "audio",
+    "requiresRoot": false
+  },
+  {
+    "action": "set_brightness",
+    "name": "Set Screen Brightness",
+    "description": "Adjusts display brightness (0-255)",
+    "category": "system",
+    "requiresRoot": true
+  },
+  {
+    "action": "exec_shell",
+    "name": "Execute Shell Command",
+    "description": "Runs an arbitrary root shell script on Android",
+    "category": "system",
+    "requiresRoot": true
+  }
+]

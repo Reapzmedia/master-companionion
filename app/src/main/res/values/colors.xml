@@ -1,0 +1,19 @@
+<resources>
+    <!-- Backgrounds & OLED True Black -->
+    <color name="bg_pure_black">#000000</color>
+    <color name="surface_dark">#121212</color>
+    <color name="surface_card">#1E1E1E</color>
+    <color name="surface_card_border">#2A2A2A</color>
+
+    <!-- Brand & Accent Colors -->
+    <color name="accent_emerald">#10B981</color>
+    <color name="accent_cyan">#06B6D4</color>
+    <color name="accent_amber">#F59E0B</color>
+    <color name="accent_crimson">#EF4444</color>
+    <color name="spotify_green">#1DB954</color>
+
+    <!-- Typography -->
+    <color name="text_primary">#F9FAFB</color>
+    <color name="text_secondary">#9CA3AF</color>
+    <color name="text_muted">#6B7280</color>
+</resources>
