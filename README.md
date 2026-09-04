@@ -4,6 +4,8 @@
 
 Master Companion transforms a docked, rooted Android device (optimized for Google Pixel 7 Pro, with support for older devices such as Huawei P20 Lite on Android 9) into a smart desk clock, hardware monitor, physical macro keypad receiver, and low-latency wireless/USB audio receiver.
 
+> 🤖 **AI Agent Context & Handoff**: See [AGENTS.md](file:///c:/Users/panni/Downloads/master%20companionion/AGENTS.md) for full architectural guidelines, hardware topology, UI design rules, and cross-session context.
+
 ---
 
 ## 📚 Project Documentation
