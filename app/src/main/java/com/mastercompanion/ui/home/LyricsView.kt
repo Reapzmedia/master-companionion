@@ -37,23 +37,23 @@ import com.mastercompanion.domain.model.TrackLyrics
  */
 @Composable
 fun LyricsView(
-    lyrics: TrackLyrics,
+    lyrics: TrackLyrics?,
     progressMs: Long,
     onSeekToTimestamp: (Long) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
-    val activeIndex = lyrics.getCurrentLineIndex(progressMs)
+    val activeIndex = lyrics?.getCurrentLineIndex(progressMs) ?: -1
 
     // Smoothly scroll to keep active lyric line centered
     LaunchedEffect(activeIndex) {
-        if (activeIndex >= 0 && activeIndex < lyrics.lines.size) {
+        if (lyrics != null && activeIndex >= 0 && activeIndex < lyrics.lines.size) {
             val targetScroll = (activeIndex - 1).coerceAtLeast(0)
             listState.animateScrollToItem(targetScroll)
         }
     }
 
-    if (lyrics.lines.isEmpty()) {
+    if (lyrics == null || lyrics.lines.isEmpty()) {
         Box(
             modifier = modifier.fillMaxSize(),
             contentAlignment = Alignment.Center

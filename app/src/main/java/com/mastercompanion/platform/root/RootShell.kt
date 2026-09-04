@@ -68,13 +68,20 @@ class RootShell @Inject constructor() {
      * Reads the contents of a sysfs file using root shell.
      */
     suspend fun readSysfs(path: String): Result<String> {
-        return execute("cat $path")
+        return execute("cat $path 2>/dev/null")
     }
 
     /**
-     * Writes a value into a sysfs file using root shell.
+     * Writes a value into a sysfs file using root shell with DAC permission elevation.
      */
     suspend fun writeSysfs(path: String, value: String): Result<Unit> {
-        return execute("echo $value > $path").map { }
+        return execute("echo '$value' > $path 2>/dev/null || (chmod 666 $path 2>/dev/null && echo '$value' > $path)").map { }
+    }
+
+    /**
+     * Checks if a sysfs or Linux kernel file exists and is accessible.
+     */
+    suspend fun checkFileExists(path: String): Boolean {
+        return execute("[ -e \"$path\" ] && echo 1 || echo 0").getOrNull()?.trim() == "1"
     }
 }

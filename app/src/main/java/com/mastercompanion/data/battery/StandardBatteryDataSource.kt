@@ -31,7 +31,7 @@ class StandardBatteryDataSource @Inject constructor(
                 val tempTenthsC = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 300)
 
                 val percentage = if (level != -1 && scale != -1) (level * 100 / scale) else 50
-                val voltageVolts = voltageMv / 1000f
+                val voltageVolts = if (voltageMv in 2500..5500) voltageMv / 1000f else 4.15f
                 val temperatureC = tempTenthsC / 10f
 
                 val status = when (statusRaw) {
@@ -41,12 +41,30 @@ class StandardBatteryDataSource @Inject constructor(
                     else -> ChargingStatus.UNKNOWN
                 }
 
+                val batteryManager = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
+                val rawCurrentMicroAmps = batteryManager?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW) ?: 0
+                val currentMagnitude = if (rawCurrentMicroAmps != Int.MIN_VALUE && rawCurrentMicroAmps != 0) {
+                    kotlin.math.abs(rawCurrentMicroAmps) / 1_000_000f
+                } else {
+                    val avgCurrent = batteryManager?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_AVERAGE) ?: 0
+                    if (avgCurrent != Int.MIN_VALUE && avgCurrent != 0) kotlin.math.abs(avgCurrent) / 1_000_000f else (if (status == ChargingStatus.CHARGING) 1.2f else 0.35f)
+                }
+
+                val signedCurrent = when (status) {
+                    ChargingStatus.CHARGING -> currentMagnitude
+                    ChargingStatus.DISCHARGING -> -currentMagnitude
+                    ChargingStatus.IDLE -> 0.0f
+                    else -> currentMagnitude
+                }
+
+                val wattage = kotlin.math.abs(voltageVolts * signedCurrent)
+
                 trySend(
                     BatteryData(
                         percentage = percentage,
                         voltageVolts = voltageVolts,
-                        currentAmperes = if (status == ChargingStatus.CHARGING) 1.5f else 0.4f,
-                        wattage = voltageVolts * (if (status == ChargingStatus.CHARGING) 1.5f else 0.4f),
+                        currentAmperes = signedCurrent,
+                        wattage = wattage,
                         temperatureCelsius = temperatureC,
                         status = status,
                         isChargeLimitActive = false,

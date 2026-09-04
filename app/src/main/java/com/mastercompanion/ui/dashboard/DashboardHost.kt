@@ -85,8 +85,11 @@ fun DashboardHost(
                     // Page 0: Hero Standby Clock & Battery Telemetry
                     HomePage(
                         batteryData = batteryData,
+                        pcMac = pcMac,
+                        pcIp = pcIp,
                         onToggleChargeLimit = { viewModel.toggleChargeLimit() },
-                        onSendWol = { viewModel.executeBridgeAction("wol") }
+                        onSendWol = { mac, ip -> viewModel.sendWol(mac, ip) },
+                        onSavePcNetwork = { ip, mac -> viewModel.updatePcNetwork(ip, mac) }
                     )
                 }
                 1 -> {
@@ -95,7 +98,8 @@ fun DashboardHost(
                         track = currentTrack,
                         onPlayPauseToggle = { viewModel.togglePlayPause() },
                         onSkipNext = { viewModel.skipNext() },
-                        onSkipPrevious = { viewModel.skipPrevious() }
+                        onSkipPrevious = { viewModel.skipPrevious() },
+                        onConnectSpotify = { viewModel.connectSpotify() }
                     )
                 }
                 2 -> {

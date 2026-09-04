@@ -38,6 +38,9 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -78,8 +81,8 @@ import java.util.Locale
  */
 @Composable
 fun MusicPage(
-    track: SpotifyTrack,
-    lyrics: TrackLyrics = TrackLyrics.MockBlackAndYellow,
+    track: SpotifyTrack?,
+    lyrics: TrackLyrics? = null,
     initialLayout: MusicPlayerLayout = MusicPlayerLayout.STANDARD,
     onPlayPauseToggle: () -> Unit = {},
     onSkipNext: () -> Unit = {},
@@ -89,8 +92,17 @@ fun MusicPage(
     onToggleRepeat: () -> Unit = {},
     onToggleLike: () -> Unit = {},
     onOpenDevices: () -> Unit = {},
+    onConnectSpotify: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    if (track == null) {
+        MusicPageEmptyState(
+            onConnectSpotify = onConnectSpotify,
+            modifier = modifier
+        )
+        return
+    }
+
     var layoutMode by remember { mutableStateOf(initialLayout) }
     var isLiked by remember { mutableStateOf(false) }
     var isShuffle by remember { mutableStateOf(true) }
@@ -102,7 +114,7 @@ fun MusicPage(
     val progressFraction = if (track.durationMs > 0) {
         (track.progressMs.toFloat() / track.durationMs.toFloat()).coerceIn(0f, 1f)
     } else {
-        0.25f
+        0f
     }
 
     Box(
@@ -783,7 +795,7 @@ private fun PortraitStandardView(
 @Composable
 private fun LyricsModeView(
     track: SpotifyTrack,
-    lyrics: TrackLyrics,
+    lyrics: TrackLyrics?,
     progressFraction: Float,
     isLandscape: Boolean,
     onSeekToTimestamp: (Long) -> Unit,
@@ -1218,6 +1230,185 @@ private fun formatTime(millis: Long): String {
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
     return String.format("%d:%02d", minutes, seconds)
+}
+
+/**
+ * Empty Standby State displayed when no media is actively playing or connected.
+ * Adheres strictly to the OLED black Standby aesthetic without artificial cards or glass boxes.
+ */
+@Composable
+fun MusicPageEmptyState(
+    onConnectSpotify: () -> Unit = {},
+    modifier: Modifier = Modifier
+) {
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color.Black),
+        contentAlignment = Alignment.Center
+    ) {
+        // Subtle radial vignette
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(
+                            Color(0xFF18221B).copy(alpha = 0.35f),
+                            Color.Black
+                        ),
+                        radius = 800f
+                    )
+                )
+        )
+
+        if (isLandscape) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 48.dp, vertical = 32.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                // Vinyl / Music Emblem
+                Box(
+                    modifier = Modifier
+                        .size(170.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF141416)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(130.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF1E1E22)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.MusicNote,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.4f),
+                            modifier = Modifier.size(54.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(48.dp))
+
+                // Action Column
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = "Standby Media Player",
+                        style = MaterialTheme.typography.headlineLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 30.sp
+                        ),
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Nothing is currently playing. Start playback on Spotify Connect or tap below to authenticate.",
+                        style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp),
+                        color = Color.White.copy(alpha = 0.65f)
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Button(
+                        onClick = onConnectSpotify,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF1DB954),
+                            contentColor = Color.Black
+                        ),
+                        shape = CircleShape,
+                        modifier = Modifier.height(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.PlayArrow,
+                            contentDescription = null,
+                            tint = Color.Black,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Connect Spotify Account",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
+                    }
+                }
+            }
+        } else {
+            // Portrait
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(140.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF141416)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.MusicNote,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.4f),
+                        modifier = Modifier.size(48.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(32.dp))
+                Text(
+                    text = "Standby Media Player",
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 24.sp
+                    ),
+                    color = Color.White,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "Nothing currently playing.\nConnect to Spotify or play on your PC.",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp),
+                    color = Color.White.copy(alpha = 0.6f),
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(28.dp))
+                Button(
+                    onClick = onConnectSpotify,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF1DB954),
+                        contentColor = Color.Black
+                    ),
+                    shape = CircleShape,
+                    modifier = Modifier.height(48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.PlayArrow,
+                        contentDescription = null,
+                        tint = Color.Black,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Connect Spotify",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp
+                    )
+                }
+            }
+        }
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════

@@ -41,7 +41,7 @@ class DashboardViewModel @Inject constructor(
 
     // ═══ State Flows ═══
     val batteryData: StateFlow<BatteryData> = batteryRepository.batteryData
-    val currentTrack: StateFlow<SpotifyTrack> = spotifyRepository.currentTrack
+    val currentTrack: StateFlow<SpotifyTrack?> = spotifyRepository.currentTrack
     val audioStreamState: StateFlow<AudioStreamState> = audioPlayer.streamState
     val commandLogs: StateFlow<List<CommandLogEntry>> = commandExecutor.commandLogs
     val navigationEvents: SharedFlow<Int> = commandExecutor.navigationEvents
@@ -126,6 +126,22 @@ class DashboardViewModel @Inject constructor(
     }
 
     // ═══ Bridge Actions ═══
+    fun sendWol(mac: String? = null, ip: String? = null) {
+        viewModelScope.launch {
+            val targetMac = mac?.takeIf { it.isNotBlank() } ?: pcMac.value
+            val targetIp = ip?.takeIf { it.isNotBlank() } ?: pcIp.value
+            commandExecutor.execute(
+                CommandRequest(
+                    action = "wol",
+                    params = buildMap {
+                        if (targetMac.isNotBlank()) put("mac", targetMac)
+                        if (targetIp.isNotBlank()) put("ip", targetIp)
+                    }
+                )
+            )
+        }
+    }
+
     fun executeBridgeAction(action: String, params: Map<String, String> = emptyMap()) {
         viewModelScope.launch {
             commandExecutor.execute(CommandRequest(action, params))
