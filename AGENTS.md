@@ -1,12 +1,13 @@
 # AGENTS.md — Master Companion AI Architectural Context & Handoff Guide
 
-> **Notice for AI Agents**: This file contains the complete system architecture, hardware topology, UI design rules, codebase layout, and implementation state for the **Master Companion** project. Read this file first to instantly restore full context before making code or architecture changes.
+> 🤖 **Handover Directive for AI Agents & Gemini in Android Studio**:  
+> This document is the single source of truth for the **Master Companion** project. It details the complete architecture, hardware topology, strict UI/UX design rules, codebase layout, and the phased roadmap. Read this file first to immediately restore full context before making any code or architecture changes.
 
 ---
 
-## 1. Project Vision & Hardware Topology
+## 1. Quick Project Summary & Hardware Topology
 
-Master Companion turns a docked, rooted Android phone (targeted for **Google Pixel 7 Pro**, backward-compatible with **Huawei P20 Lite on Android 9 / API 28**) into a permanent landscape **Smart Desk Standby Dashboard**, hardware monitor, physical macro-pad command receiver, and low-latency wireless/USB audio receiver.
+Master Companion transforms a docked, rooted Android device (optimized for **Google Pixel 7 Pro**, with backward compatibility for **Huawei P20 Lite on Android 9 / API 28**) into a permanent landscape **Smart Desk Standby Dashboard**, hardware monitor, physical macro-pad command receiver, and low-latency wireless/USB audio receiver.
 
 ### Hardware & Network Flow
 ```mermaid
@@ -35,7 +36,7 @@ graph LR
 ## 2. Strict UI/UX Design System Rules
 
 The UI direction was explicitly established with the user:
-1. **NO Artificial Glass Boxes / Heavy Glass Panels**: Do NOT add frosted glass cards, rectangular containers, or glossy acrylic boxes around text and controls.
+1. **NO Artificial Glass Boxes / Heavy Glass Panels**: Do NOT wrap text or controls in frosted acrylic containers or glossy glass boxes.
 2. **Native Standby / Spotify Car View Aesthetic**:
    - **Background**: Ambient, heavily softened, and dimmed album art filling the screen with an atmospheric radial dark vignette (`Color.Black.copy(alpha = 0.55f)` to `0.88f`).
    - **Left Column**: Prominent square album artwork with soft rounded corners (`16dp` radius) and a floating circular queue button (`Icons.Filled.Menu`) at its bottom-right.
@@ -46,20 +47,29 @@ The UI direction was explicitly established with the user:
      - Secondary Action Row: Smart Shuffle (`🔀✨`), Add to Library / Like (`(+)`), Spotify Connect devices (`((•))`), Repeat/Loop (`🔁`).
      - Footer: `^ SPOTIFY` device picker and Volume speaker icon.
      - Bottom Center: Subtle swipeable multi-page pagination dots.
-3. **Orientation & Responsiveness**:
+3. **Lyrics Mode Format (Exact Spotify Standby Lyrics View)**:
+   - **Top-Left**: Playlist context header with list icon: `PLAYING FROM PLAYLIST` (small, all-caps) and `Liked Songs` (bold white). Tapping exits to standard view.
+   - **Left Column**:
+     - Square album art (`16dp` rounded corners).
+     - Metadata with colored icons: `🎵 Title`, `👤 Artist`, `💿 Album • Year`.
+     - Compact red/colored control bar: Heart/Like (`❤️`), Smart Shuffle (`🔀`), Skip Back (`|◀◀`), Play/Pause (`||`), Skip Next (`▶▶|`), Repeat (`🔁`), and Close Lyrics (`✕`).
+     - Timestamp (`0:51`), progress seek bar, and duration (`4:54`).
+   - **Right Column**:
+     - Live karaoke synced lyrics.
+     - **Active Singing Line**: Crisp, bold, oversized pure white text (`32sp`).
+     - **Upcoming Lines**: Progressively dimmed and optically blurred (`1.5dp` – `3dp` blur with fading opacity) as they cascade downward.
+     - **Auto-Scroll**: Keeps the active line smoothly centered with tap-to-seek playback support.
+4. **Orientation & Responsiveness**:
    - Primary: Docked landscape mode.
    - Secondary: Adaptive full portrait (vertical) support for handheld use (`android:screenOrientation="fullUser"`).
-4. **Background Dynamics**:
+5. **Background Dynamics**:
    - Seamless 600ms crossfade animation when changing tracks and album artwork.
    - Atmospheric radial dark vignette for high contrast and legibility.
-5. **Multiple Layout Modes**:
-   - **Standard View**: Two-column landscape or vertical portrait Spotify standby player.
-   - **Lyrics View (Exact Spotify Standby Format)**:
-     - **Top-Left**: Playlist context (`PLAYING FROM PLAYLIST` + `Liked Songs` with list icon).
-     - **Left Column**: Square album art (`16dp` radius), metadata with icons (`🎵 Title`, `👤 Artist`, `💿 Album • Year`), compact colored control dock (Heart, Shuffle, Prev, Play, Next, Repeat, Lyrics toggle), and seekbar with timestamps.
-     - **Right Column**: Synced live karaoke lyrics. Active line is crisp, bold white (`32sp`); upcoming lines are progressively dimmed and blurred.
-   - **Minimal Standby View**: Oversized digital clock (`110sp`) with compact playback telemetry for clean desk clock usage.
-6. **OLED Black Standby Mode**: For the Home Clock page, true black `#000000` is mandatory to eliminate backlight glow and prevent burn-in.
+6. **Multiple Presentation Modes**:
+   - `STANDARD`: Native Spotify car/standby landscape view.
+   - `LYRICS`: Synchronized full-screen lyrics split view.
+   - `MINIMAL`: Oversized digital clock (`110sp`) with compact playback telemetry for clean desk clock usage.
+7. **OLED Black Standby Mode**: For the Home Clock page, true black `#000000` is mandatory to eliminate backlight glow and prevent burn-in.
 
 ---
 
@@ -67,7 +77,7 @@ The UI direction was explicitly established with the user:
 
 ```
 master-companion/
-├── AGENTS.md                                           # THIS FILE: Master context for AI agents
+├── AGENTS.md                                           # THIS FILE: Master context for AI agents & Gemini
 ├── README.md                                           # Human-facing overview & quickstart
 ├── build.gradle.kts                                    # Root build script (plugins only)
 ├── settings.gradle.kts                                 # Repositories & project include
@@ -108,10 +118,11 @@ master-companion/
         ├── res/                                        # Material 3 colors, strings, themes, security config
         └── java/com/mastercompanion/
             ├── MasterCompanionApp.kt                   # Application class (@HiltAndroidApp, notification channels)
-            ├── MainActivity.kt                         # Landscape entry point hosting DashboardHost()
+            ├── MainActivity.kt                         # Multi-orientation entry point hosting DashboardHost()
             │
             ├── domain/model/                           # Immutable domain models
-            │   ├── SpotifyTrack.kt                     # Track state, title, artist, artUrl, progress
+            │   ├── SpotifyTrack.kt                     # Track state, title, artist, artUrl, progress, playlistContext
+            │   ├── Lyrics.kt                           # LyricLine, TrackLyrics, getCurrentLineIndex() & mocks
             │   ├── BatteryData.kt                      # Voltage, current, wattage, bypass status
             │   ├── CommandAction.kt                    # CommandRequest & CommandResponse
             │   └── AudioStreamState.kt                 # UDP receiver stats & latency
@@ -131,7 +142,9 @@ master-companion/
                 ├── dashboard/
                 │   └── DashboardHost.kt                # HorizontalPager multi-page swiping container
                 └── home/
-                    └── MusicPage.kt                    # Replicated native Spotify landscape player
+                    ├── MusicPage.kt                    # Replicated native Spotify landscape player + LyricsView
+                    ├── LyricsView.kt                   # Progressive blur karaoke lyrics engine
+                    └── MusicPlayerLayout.kt            # STANDARD, LYRICS, MINIMAL enum
 ```
 
 ---
@@ -142,6 +155,7 @@ master-companion/
 * **Target SDK**: 34 (Android 14)
 * **Min SDK**: 28 (Android 9 / Huawei P20 Lite)
 * **Desugaring**: `coreLibraryDesugaring(libs.desugar.jdk)` is configured in `app/build.gradle.kts` to allow modern `java.time` APIs on Android 9.
+* **Architecture**: Jetpack Compose + MVVM / Clean Architecture + Hilt Dependency Injection.
 
 ### B. Battery & Charging Control (Kernel Sysfs)
 * Root access (`su`) is used to directly control charging ICs when the phone is continuously docked:
@@ -161,10 +175,73 @@ master-companion/
 ### D. Audio Passthrough (UDP Stream)
 * PC script `pc/audio/audio_streamer.py` captures WASAPI loopback from Windows and transmits 20ms frames to UDP port `8421`.
 * **Packet Header**: `>BII` (1 byte codec: `0x01` PCM, `0x02` Opus; 4 bytes sequence number; 4 bytes timestamp + payload).
+* Android playback uses low-latency `AudioTrack` configured for 48kHz 16-bit stereo PCM.
 
 ---
 
-## 5. Development & Testing Commands
+## 5. Phased Implementation Roadmap (For Gemini in Android Studio)
+
+Gemini should execute the remaining codebase in this sequential order:
+
+### Phase 1: Dependency Injection & Preferences Layer
+- [ ] Create `app/src/main/java/com/mastercompanion/data/prefs/PreferencesRepository.kt` (DataStore wrapper for auth token, charge limit threshold, PC IP, Spotify tokens).
+- [ ] Create Hilt modules:
+  - `di/AppModule.kt` (provides ApplicationContext, DataStore, CoroutineDispatchers).
+  - `di/NetworkModule.kt` (provides OkHttpClient, Retrofit, Json serializer).
+  - `di/RepositoryModule.kt` (binds all repository interfaces).
+
+### Phase 2: Root Battery Guard Engine
+- [ ] Create `data/battery/BatteryDataSource.kt` (interface).
+- [ ] Create `data/battery/RootBatteryDataSource.kt` (polls sysfs voltage/current via `RootShell.kt`, writes `charging_enabled`).
+- [ ] Create `data/battery/StandardBatteryDataSource.kt` (fallback via `BatteryManager` broadcast).
+- [ ] Create `data/battery/BatteryRepository.kt` (emits `StateFlow<BatteryData>`, manages 80% charge threshold auto-halt and 75% resume).
+- [ ] Wire `service/BatteryGuardService.kt` to run the threshold monitoring loop in the foreground.
+
+### Phase 3: Spotify Web API & OAuth PKCE Engine
+- [ ] Create `data/spotify/dto/SpotifyDtos.kt` (DTOs for currently-playing, recently-played, token responses).
+- [ ] Create `data/spotify/SpotifyApi.kt` (Retrofit interface for Spotify Web API).
+- [ ] Create `data/spotify/SpotifyAuthManager.kt` (OAuth 2.0 PKCE flow: generates `code_verifier` & `code_challenge`, opens custom tab, handles `mastercompanion://spotify/callback`, exchanges token).
+- [ ] Create `data/spotify/SpotifyRepository.kt` (polls playback every 1-2s, falls back to recently played, exposes play/pause/skip/seek).
+
+### Phase 4: Embedded Ktor Command Bridge & Network Utilities
+- [ ] Create `data/network/WolSender.kt` (broadcasts UDP magic packet on port 9 to wake PC).
+- [ ] Create `data/command/CommandRegistry.kt` (parses `assets/commands.json`).
+- [ ] Create `data/command/CommandExecutor.kt` (executes actions: `toggle_charge_limit`, `navigate`, `wol`, `audio_toggle`, `set_brightness`, `exec_shell`).
+- [ ] Create `server/CommandBridgeServer.kt` (configures Ktor CIO server with ContentNegotiation, status pages, CORS, and auth validation on port 8420).
+- [ ] Wire `service/CommandBridgeService.kt` to start/stop the Ktor engine.
+
+### Phase 5: Low-Latency PC Audio Passthrough Receiver
+- [ ] Create `data/audio/PacketParser.kt` (unpacks `>BII` header: codec flag, sequence, timestamp).
+- [ ] Create `data/audio/JitterBuffer.kt` (smooths packet timing variance).
+- [ ] Create `data/audio/AudioPlayer.kt` (manages `AudioTrack` 48kHz stereo stream).
+- [ ] Wire `service/AudioReceiverService.kt` to open UDP socket on port 8421 and feed incoming frames to `AudioPlayer`.
+
+### Phase 6: Multi-Page Standby Dashboard UI Suite
+- [ ] Create `ui/home/HomePage.kt` (Hero Standby Clock `20:45` + Battery wattage card + charge limit toggle).
+- [ ] Create `ui/audio/AudioPage.kt` (PC audio streaming dashboard, live stats: packet rate, loss, latency, volume slider).
+- [ ] Create `ui/system/SystemPage.kt` (Hardware monitor, root diagnostic, Ktor HTTP bridge logs).
+- [ ] Create `ui/settings/SettingsPage.kt` (Charge limit threshold, Auth Token display/copy, Spotify account login).
+- [ ] Wire all 4 pages into `ui/dashboard/DashboardHost.kt` with `HorizontalPager`.
+
+---
+
+## 6. Handover Prompt for Gemini in Android Studio
+
+Copy and paste the prompt below directly into **Gemini inside Android Studio** when you open this project:
+
+```text
+Hello Gemini! We are building Master Companion, a landscape Standby Dashboard & PC Bridge app for a rooted Android device (Pixel 7 Pro primary, Huawei P20 Lite API 28 fallback). 
+
+Please read AGENTS.md at the root of the workspace first. It contains our complete architecture, hardware topology, and strict UI rules (NO artificial glass boxes, native Spotify Car View layout, exact lyrics format from user reference screenshots).
+
+All foundational setup, Gradle version catalog (AGP 8.5.2, Compose, Ktor, Hilt), AndroidManifest, services skeletons, domain models, and the full-screen MusicPage.kt with lyrics are already built and committed to Git.
+
+Let's continue following the roadmap in AGENTS.md starting with Phase 1 (Dependency Injection & Preferences Layer: PreferencesRepository.kt and Hilt AppModule/NetworkModule/RepositoryModule) and Phase 2 (Root Battery Guard Engine).
+```
+
+---
+
+## 7. Essential Development & Testing Commands
 
 | Purpose | Command |
 |---|---|
@@ -174,30 +251,5 @@ master-companion/
 | **Setup USB ADB Tethering** | Run `pc/scripts/setup_adb_reverse.bat` |
 | **Test Command Bridge HTTP**| `powershell pc/scripts/test_command_bridge.ps1 -Action ping` |
 | **Build Android App** | `.\gradlew.bat assembleDebug` |
+| **Run Unit Tests** | `.\gradlew.bat testDebugUnitTest` |
 | **Install App to Phone** | `.\gradlew.bat installDebug` |
-
----
-
-## 6. Implementation Status & Next Roadmap
-
-### ✅ Completed
-- [x] Full product documentation (PRD, SRS, UI/UX, Implementation, Testing, Error Handling, Structure, PC Setup).
-- [x] Android Studio & Gradle 8.7 project configuration with version catalogs (`libs.versions.toml`).
-- [x] PC Companion scripts (Python audio streamer with WASAPI auto-detection & AHK v2 bridge).
-- [x] Android Manifest with foreground services, permissions, and Spotify deep link.
-- [x] Platform layer: `RootShell.kt` and `DeviceCompat.kt`.
-- [x] Domain models: `SpotifyTrack`, `BatteryData`, `CommandAction`, `AudioStreamState`.
-- [x] Service skeletons: `BatteryGuardService`, `CommandBridgeService`, `AudioReceiverService`, `BootReceiver`.
-- [x] **Full-Screen Spotify Landscape UI (`MusicPage.kt`)**: Pixel-perfect replication of native car/standby view with ambient blurred album cover, full controls, seekbar, and action buttons.
-- [x] **Multi-Page HorizontalPager (`DashboardHost.kt`)**: Swipeable navigation between Home, Music, Audio, and System.
-
-### ⏳ Next Implementation Steps (To be tackled next)
-1. **Epic 1.2 (Spotify Web API Integration)**:
-   - Implement `SpotifyAuthManager` (OAuth 2.0 PKCE flow with browser launch and deep link capture).
-   - Implement Retrofit `SpotifyApi` polling `/v1/me/player/currently-playing` with fallback to `/recently-played`.
-2. **Epic 2 (Root Battery Guard Engine)**:
-   - Wire `BatteryRepository` with `RootShell` sysfs polling and charge limit threshold enforcement (e.g., auto-halt charging at 80% and resume at 75%).
-3. **Epic 3 (Ktor Command Bridge Server)**:
-   - Configure Ktor application engine inside `CommandBridgeService` with `CIO`, `ContentNegotiation`, and action routing.
-4. **Epic 4 (Audio Receiver Pipeline)**:
-   - Complete UDP packet parser, jitter buffer, and `AudioTrack` playback in `AudioReceiverService`.
