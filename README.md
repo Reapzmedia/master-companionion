@@ -4,8 +4,8 @@
 
 **Smart Standby Dashboard, Battery Guard & PC Companion Bridge for Rooted Android Devices**
 
-[![Release](https://img.shields.io/github/v/release/EZ4Reapz/master-companionion?color=brightgreen&label=Latest%20Release&style=flat-square)](https://github.com/EZ4Reapz/master-companionion/releases/latest)
-[![Download APK](https://img.shields.io/badge/Download%20APK-v1.0.0%20Stable-blue?style=flat-square&logo=android)](https://github.com/EZ4Reapz/master-companionion/releases/download/v1.0.0/app-release.apk)
+[![Release](https://img.shields.io/github/v/release/reapzmedia/master-companionion?color=brightgreen&label=Latest%20Release&style=flat-square)](https://github.com/reapzmedia/master-companionion/releases/latest)
+[![Download APK](https://img.shields.io/badge/Download%20APK-v1.0.0%20Stable-blue?style=flat-square&logo=android)](https://github.com/reapzmedia/master-companionion/releases/download/v1.0.0/app-release.apk)
 [![Android](https://img.shields.io/badge/Android-9.0%20(API%2028)%20--%2014.0%20(API%2034)-3DDC84?style=flat-square&logo=android&logoColor=white)](https://developer.android.com)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0.0-7F52FF?style=flat-square&logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-2024.06.00-4285F4?style=flat-square&logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
@@ -15,7 +15,7 @@
 
 *Transform any docked or desk-mounted Android phone (Google Pixel 7 Pro, Huawei P20 Lite, Samsung, OnePlus, etc.) into an ultra-low-latency PC desk dashboard, hardware telemetry monitor, Spotify Car View player with karaoke synced lyrics, and physical macro keypad receiver.*
 
-### 🚀 [Download Latest APK (v1.0.0 Stable)](https://github.com/EZ4Reapz/master-companionion/releases/download/v1.0.0/app-release.apk)
+### 🚀 [Download Latest APK (v1.0.0 Stable)](https://github.com/reapzmedia/master-companionion/releases/download/v1.0.0/app-release.apk)
 
 </div>
 

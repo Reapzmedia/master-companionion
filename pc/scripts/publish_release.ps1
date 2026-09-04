@@ -34,14 +34,14 @@ $payload = @{
 # Check if release already exists
 $existingRelease = $null
 try {
-    $existingRelease = Invoke-RestMethod -Uri "https://api.github.com/repos/EZ4Reapz/master-companionion/releases/tags/v1.0.0" -Method Get -Headers $headers
+    $existingRelease = Invoke-RestMethod -Uri "https://api.github.com/repos/reapzmedia/master-companionion/releases/tags/v1.0.0" -Method Get -Headers $headers
     Write-Host "Found existing release for v1.0.0: $($existingRelease.html_url)"
 } catch {
     Write-Host "No existing release found for v1.0.0, creating new release..."
 }
 
 if (-not $existingRelease) {
-    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/EZ4Reapz/master-companionion/releases" -Method Post -Headers $headers -Body $payload -ContentType "application/json"
+    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/reapzmedia/master-companionion/releases" -Method Post -Headers $headers -Body $payload -ContentType "application/json"
 } else {
     $release = $existingRelease
 }
