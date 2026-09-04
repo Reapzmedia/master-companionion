@@ -24,8 +24,8 @@ class SpotifyAuthManager @Inject constructor(
     companion object {
         const val REDIRECT_URI = "mastercompanion://spotify/callback"
         const val SCOPES = "user-read-playback-state user-modify-playback-state user-read-currently-playing user-read-recently-played"
-        // Default Client ID placeholder
-        const val DEFAULT_CLIENT_ID = "c7d2e38148b14a299d6fbca0b497db99"
+        // User Spotify Client ID
+        const val DEFAULT_CLIENT_ID = "5871091323a84960a2ee5b9d6cb2644f"
     }
 
     /**

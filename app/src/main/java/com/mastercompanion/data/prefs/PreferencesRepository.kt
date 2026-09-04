@@ -66,7 +66,7 @@ class PreferencesRepository @Inject constructor(
     }
 
     val spotifyClientIdFlow: Flow<String> = dataStore.data.map { prefs ->
-        prefs[KEY_SPOTIFY_CLIENT_ID] ?: ""
+        prefs[KEY_SPOTIFY_CLIENT_ID] ?: "5871091323a84960a2ee5b9d6cb2644f"
     }
 
     val spotifyAccessTokenFlow: Flow<String?> = dataStore.data.map { prefs ->
