@@ -36,7 +36,10 @@ class DashboardViewModel @Inject constructor(
     private val commandExecutor: CommandExecutor,
     private val preferencesRepository: PreferencesRepository,
     private val spotifyAuthManager: SpotifyAuthManager,
-    private val rootShell: RootShell
+    private val rootShell: RootShell,
+    private val lyricsRepository: com.mastercompanion.data.lyrics.LyricsRepository,
+    private val commandBridgeServer: com.mastercompanion.server.CommandBridgeServer,
+    private val calendarRepository: com.mastercompanion.data.calendar.CalendarRepository
 ) : ViewModel() {
 
     // ═══ State Flows ═══
@@ -45,12 +48,41 @@ class DashboardViewModel @Inject constructor(
     val audioStreamState: StateFlow<AudioStreamState> = audioPlayer.streamState
     val commandLogs: StateFlow<List<CommandLogEntry>> = commandExecutor.commandLogs
     val navigationEvents: SharedFlow<Int> = commandExecutor.navigationEvents
+    val isServerRunning: StateFlow<Boolean> = commandBridgeServer.isRunning
     private val _isRootAvailable = MutableStateFlow(false)
     val isRootAvailable: StateFlow<Boolean> = _isRootAvailable.asStateFlow()
+
+    private val _deviceIp = MutableStateFlow(resolveDeviceIp())
+    val deviceIp: StateFlow<String> = _deviceIp.asStateFlow()
+
+    private val _currentLyrics = MutableStateFlow<com.mastercompanion.domain.model.TrackLyrics?>(null)
+    val currentLyrics: StateFlow<com.mastercompanion.domain.model.TrackLyrics?> = _currentLyrics.asStateFlow()
+    private var lastLyricsKey: String? = null
 
     init {
         viewModelScope.launch {
             _isRootAvailable.value = rootShell.isRootAvailable()
+        }
+        viewModelScope.launch {
+            currentTrack.collect { track ->
+                if (track != null && track.title.isNotBlank() && track.artist.isNotBlank()) {
+                    val key = "${track.artist.trim().lowercase()}_${track.title.trim().lowercase()}"
+                    if (key != lastLyricsKey) {
+                        lastLyricsKey = key
+                        _currentLyrics.value = null
+                        val fetched = lyricsRepository.getLyrics(
+                            title = track.title,
+                            artist = track.artist,
+                            album = track.album,
+                            durationMs = track.durationMs
+                        )
+                        _currentLyrics.value = fetched
+                    }
+                } else {
+                    lastLyricsKey = null
+                    _currentLyrics.value = null
+                }
+            }
         }
     }
 
@@ -75,6 +107,116 @@ class DashboardViewModel @Inject constructor(
     val isSpotifyConnected: StateFlow<Boolean> = preferencesRepository.spotifyAccessTokenFlow
         .map { !it.isNullOrBlank() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val whiteTheme: StateFlow<Boolean> = preferencesRepository.whiteThemeFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val pixelShift: StateFlow<Boolean> = preferencesRepository.pixelShiftFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val clockStyle: StateFlow<Int> = preferencesRepository.clockStyleFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val musicLayout: StateFlow<Int> = preferencesRepository.musicLayoutFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val use24HourFormat: StateFlow<Boolean> = preferencesRepository.use24HourFormatFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val audioPassthroughEnabled: StateFlow<Boolean> = preferencesRepository.audioPassthroughEnabledFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val calendarEnabled: StateFlow<Boolean> = preferencesRepository.calendarEnabledFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val chargeLimitEnabled: StateFlow<Boolean> = preferencesRepository.chargeLimitEnabledFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val autoLaunchOnCharging: StateFlow<Boolean> = preferencesRepository.autoLaunchOnChargingFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val autoFullscreenClockEnabled: StateFlow<Boolean> = preferencesRepository.autoFullscreenClockFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val upcomingEvents: StateFlow<List<com.mastercompanion.domain.model.CalendarEvent>> = calendarRepository.events
+    val latestReminder: StateFlow<com.mastercompanion.domain.model.CalendarEvent?> = calendarRepository.latestReminder
+    val hasCalendarPermission: StateFlow<Boolean> = calendarRepository.hasPermission
+    val syncedAccount: StateFlow<String?> = calendarRepository.syncedAccount
+
+    fun refreshCalendar() {
+        calendarRepository.refreshCalendar()
+    }
+
+    fun triggerGoogleSync() {
+        calendarRepository.triggerGoogleSync()
+    }
+
+    fun getOpenCalendarIntent(): android.content.Intent {
+        return calendarRepository.getOpenCalendarIntent()
+    }
+
+    fun setAutoLaunchOnCharging(enabled: Boolean) {
+        viewModelScope.launch { preferencesRepository.setAutoLaunchOnCharging(enabled) }
+    }
+
+    fun setUse24HourFormat(use24: Boolean) {
+        viewModelScope.launch { preferencesRepository.setUse24HourFormat(use24) }
+    }
+
+    fun setAudioPassthroughEnabled(enabled: Boolean) {
+        viewModelScope.launch { preferencesRepository.setAudioPassthroughEnabled(enabled) }
+    }
+
+    fun setCalendarEnabled(enabled: Boolean) {
+        viewModelScope.launch { preferencesRepository.setCalendarEnabled(enabled) }
+    }
+
+    fun setChargeLimitEnabled(enabled: Boolean) {
+        viewModelScope.launch { preferencesRepository.setChargeLimitEnabled(enabled) }
+    }
+
+    fun setWhiteTheme(enabled: Boolean) {
+        viewModelScope.launch { preferencesRepository.setWhiteTheme(enabled) }
+    }
+
+    fun setPixelShift(enabled: Boolean) {
+        viewModelScope.launch { preferencesRepository.setPixelShift(enabled) }
+    }
+
+    fun setAutoFullscreenClock(enabled: Boolean) {
+        viewModelScope.launch { preferencesRepository.setAutoFullscreenClock(enabled) }
+    }
+
+    fun setClockStyle(styleIndex: Int) {
+        viewModelScope.launch { preferencesRepository.setClockStyle(styleIndex) }
+    }
+
+    fun setMusicLayout(layoutIndex: Int) {
+        viewModelScope.launch { preferencesRepository.setMusicLayout(layoutIndex) }
+    }
+
+    fun startServer() {
+        commandBridgeServer.start(webPort = 8060, bridgePort = 8420)
+    }
+
+    fun stopServer() {
+        commandBridgeServer.stop()
+    }
+
+    private fun resolveDeviceIp(): String {
+        try {
+            val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
+            for (intf in java.util.Collections.list(interfaces)) {
+                for (addr in java.util.Collections.list(intf.inetAddresses)) {
+                    if (!addr.isLoopbackAddress && addr is java.net.Inet4Address) {
+                        val ip = addr.hostAddress ?: ""
+                        if (ip.isNotBlank() && ip != "127.0.0.1") return ip
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+        return "127.0.0.1"
+    }
 
     // ═══ Battery Actions ═══
     fun toggleChargeLimit() {
@@ -105,6 +247,43 @@ class DashboardViewModel @Inject constructor(
     fun seekTo(positionMs: Long) {
         viewModelScope.launch {
             spotifyRepository.seekTo(positionMs)
+        }
+    }
+
+    val isCurrentTrackLiked: StateFlow<Boolean> = spotifyRepository.isCurrentTrackLiked
+    val isLibraryScopeMissing: StateFlow<Boolean> = spotifyRepository.isLibraryScopeMissing
+    val isShuffle: StateFlow<Boolean> = spotifyRepository.isShuffle
+    val repeatMode: StateFlow<Int> = spotifyRepository.repeatMode
+    val activeDeviceName: StateFlow<String> = spotifyRepository.activeDeviceName
+    val spotifyVolume: StateFlow<Int?> = spotifyRepository.activeDeviceVolume
+
+    fun setSpotifyVolume(volumePercent: Int) {
+        viewModelScope.launch {
+            spotifyRepository.setVolume(volumePercent)
+        }
+    }
+
+    fun adjustSpotifyVolume(deltaPercent: Int) {
+        viewModelScope.launch {
+            spotifyRepository.adjustVolume(deltaPercent)
+        }
+    }
+
+    fun toggleLike() {
+        viewModelScope.launch {
+            spotifyRepository.toggleLike()
+        }
+    }
+
+    fun toggleShuffle() {
+        viewModelScope.launch {
+            spotifyRepository.toggleShuffle()
+        }
+    }
+
+    fun toggleRepeat() {
+        viewModelScope.launch {
+            spotifyRepository.toggleRepeat()
         }
     }
 

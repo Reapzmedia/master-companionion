@@ -42,6 +42,13 @@ F22::SendCommand("set_brightness", '{"value": 128}')
 F23::SendCommand("set_brightness", '{"value": 255}')
 F24::SendCommand("navigate", '{"page": "settings"}')
 
+; Rotary Volume Knob Bindings (Optional: adjust hotkeys to match your hardware rotary encoder)
+; Example for macro pad rotary knobs sending custom keys or scan codes:
+; ^!WheelUp::SendCommand("volume_up", '{"step": 5}')
+; ^!WheelDown::SendCommand("volume_down", '{"step": 5}')
+; NumpadAdd::SendCommand("volume_up", '{"step": 5}')
+; NumpadSub::SendCommand("volume_down", '{"step": 5}')
+
 ; ═══════════════════════════════════════════════════════════════════
 ; CORE FUNCTIONALITY — HTTP Dispatch & Status Feedback
 ; ═══════════════════════════════════════════════════════════════════

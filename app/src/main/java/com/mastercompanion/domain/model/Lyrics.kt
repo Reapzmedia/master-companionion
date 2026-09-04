@@ -10,7 +10,7 @@ data class LyricLine(
 
 @Serializable
 data class TrackLyrics(
-    val trackId: String,
+    val trackId: String = "",
     val lines: List<LyricLine> = emptyList(),
     val isSynced: Boolean = true
 ) {

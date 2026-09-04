@@ -52,4 +52,34 @@ object NetworkModule {
     fun provideSpotifyApi(retrofit: Retrofit): SpotifyApi {
         return retrofit.create(SpotifyApi::class.java)
     }
+
+    @Provides
+    @Singleton
+    fun provideLrclibApi(
+        okHttpClient: OkHttpClient,
+        json: Json
+    ): com.mastercompanion.data.lyrics.LrclibApi {
+        val contentType = "application/json".toMediaType()
+        return Retrofit.Builder()
+            .baseUrl("https://lrclib.net/")
+            .client(okHttpClient)
+            .addConverterFactory(json.asConverterFactory(contentType))
+            .build()
+            .create(com.mastercompanion.data.lyrics.LrclibApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideLyricsOvhApi(
+        okHttpClient: OkHttpClient,
+        json: Json
+    ): com.mastercompanion.data.lyrics.LyricsOvhApi {
+        val contentType = "application/json".toMediaType()
+        return Retrofit.Builder()
+            .baseUrl("https://api.lyrics.ovh/")
+            .client(okHttpClient)
+            .addConverterFactory(json.asConverterFactory(contentType))
+            .build()
+            .create(com.mastercompanion.data.lyrics.LyricsOvhApi::class.java)
+    }
 }

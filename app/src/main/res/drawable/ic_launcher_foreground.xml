@@ -4,10 +4,54 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- Standby Monitor / Desk Tablet Frame Outline -->
+    <path
+        android:strokeColor="#38BDF8"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:pathData="M31,34 L77,34 A7,7 0 0,1 84,41 L84,67 A7,7 0 0,1 77,74 L31,74 A7,7 0 0,1 24,67 L24,41 A7,7 0 0,1 31,34 Z" />
+
+    <!-- Dock Stand Base -->
+    <path
+        android:strokeColor="#64748B"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M48,74 L46,81 L62,81 L60,74" />
+    <path
+        android:strokeColor="#38BDF8"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M40,81 L68,81" />
+
+    <!-- Musical Audio Waveform Left -->
+    <path
+        android:strokeColor="#10B981"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M33,54 L33,54 M38,48 L38,60" />
+
+    <!-- Central High-Tech Power Lightning Bolt -->
+    <path
+        android:fillColor="#F59E0B"
+        android:strokeColor="#F59E0B"
+        android:strokeWidth="1"
+        android:strokeLineJoin="round"
+        android:pathData="M56,42 L47,53 L53,53 L51,66 L62,54 L55,54 Z" />
+
+    <!-- Musical Audio Waveform Right -->
+    <path
+        android:strokeColor="#10B981"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M70,48 L70,60 M75,54 L75,54" />
+
+    <!-- Status Pulse Beacon Dot -->
     <path
         android:fillColor="#10B981"
-        android:pathData="M30,30 L78,30 L78,78 L30,78 Z" />
-    <path
-        android:fillColor="#06B6D4"
-        android:pathData="M42,42 L66,42 L66,66 L42,66 Z" />
+        android:pathData="M76,39m-1.5,0a1.5,1.5 0,1,1 3,0a1.5,1.5 0,1,1 -3,0" />
 </vector>

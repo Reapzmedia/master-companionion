@@ -1,23 +1,33 @@
+# Gradle files
 *.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
+.gradle/
+build/
 /build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
-
-# App build output
 app/build/
+
+# Android Studio / IntelliJ
+.idea/
+*.iws
+out/
+
+# Local configuration
+local.properties
+/local.properties
+
+# Build outputs & Android
 *.apk
 *.aab
+*.ap_
+*.dex
+*.class
+captures/
+.externalNativeBuild
+.cxx/
+*.jks
+*.keystore
+
+# Log files
+*.log
 
 # Python
 __pycache__/
@@ -33,5 +43,6 @@ dist/
 *.exe
 
 # OS generated
+.DS_Store
 Thumbs.db
 Desktop.ini

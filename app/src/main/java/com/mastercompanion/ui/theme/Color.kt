@@ -19,3 +19,12 @@ val SpotifyGreen = Color(0xFF1DB954)  // Spotify brand
 val TextPrimary = Color(0xFFF9FAFB)
 val TextSecondary = Color(0xFF9CA3AF)
 val TextMuted = Color(0xFF6B7280)
+
+// Porcelain White Theme Palette (Clean Scandinavian Desk Vibe)
+val PorcelainBackground = Color(0xFFF8F9FA)
+val PorcelainSurface = Color(0xFFFFFFFF)
+val PorcelainCard = Color(0xFFF1F3F5)
+val PorcelainCardBorder = Color(0xFFE9ECEF)
+val PorcelainTextPrimary = Color(0xFF111827)
+val PorcelainTextSecondary = Color(0xFF4B5563)
+val PorcelainTextMuted = Color(0xFF9CA3AF)

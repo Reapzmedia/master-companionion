@@ -31,11 +31,26 @@ class CommandBridgeService : Service() {
         super.onCreate()
         Timber.i("CommandBridgeService created")
         startForeground(NOTIFICATION_ID, buildNotification())
-        server.start(port = 8420)
+        server.start(webPort = 8060, bridgePort = 8420)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Timber.i("CommandBridgeService started (Ktor HTTP bridge)")
+        when (intent?.action) {
+            ACTION_STOP_SERVER -> {
+                Timber.i("CommandBridgeService received STOP_SERVER action")
+                server.stop()
+            }
+            ACTION_START_SERVER -> {
+                Timber.i("CommandBridgeService received START_SERVER action")
+                server.start(webPort = 8060, bridgePort = 8420)
+            }
+            else -> {
+                Timber.i("CommandBridgeService started (Ktor HTTP bridge & Web dashboard)")
+                if (!server.isRunning.value) {
+                    server.start(webPort = 8060, bridgePort = 8420)
+                }
+            }
+        }
         return START_STICKY
     }
 
@@ -58,7 +73,7 @@ class CommandBridgeService : Service() {
 
         return NotificationCompat.Builder(this, MasterCompanionApp.CHANNEL_COMMAND_BRIDGE)
             .setContentTitle(getString(R.string.app_name))
-            .setContentText("Command Bridge Active (Listening on :8420)")
+            .setContentText("Bridge Active: Web (:8060) & Commands (:8420)")
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
@@ -67,6 +82,8 @@ class CommandBridgeService : Service() {
     }
 
     companion object {
+        const val ACTION_START_SERVER = "com.mastercompanion.action.START_SERVER"
+        const val ACTION_STOP_SERVER = "com.mastercompanion.action.STOP_SERVER"
         private const val NOTIFICATION_ID = 1002
     }
 }

@@ -3,6 +3,7 @@ package com.mastercompanion.data.command
 import com.mastercompanion.data.battery.BatteryRepository
 import com.mastercompanion.data.network.WolSender
 import com.mastercompanion.data.prefs.PreferencesRepository
+import com.mastercompanion.data.spotify.SpotifyRepository
 import com.mastercompanion.domain.model.CommandRequest
 import com.mastercompanion.domain.model.CommandResponse
 import com.mastercompanion.platform.root.RootShell
@@ -29,7 +30,8 @@ class CommandExecutor @Inject constructor(
     private val batteryRepository: BatteryRepository,
     private val wolSender: WolSender,
     private val preferencesRepository: PreferencesRepository,
-    private val rootShell: RootShell
+    private val rootShell: RootShell,
+    private val spotifyRepository: SpotifyRepository
 ) {
     private val _navigationEvents = MutableSharedFlow<Int>(extraBufferCapacity = 1)
     val navigationEvents: SharedFlow<Int> = _navigationEvents.asSharedFlow()
@@ -113,6 +115,103 @@ class CommandExecutor @Inject constructor(
                             action = request.action
                         )
                     }
+                }
+                "set_volume", "volume", "spotify_volume" -> {
+                    val valueStr = request.params["value"]
+                        ?: request.params["percent"]
+                        ?: request.params["volume"]
+                        ?: request.params["volume_percent"]
+                    val deltaStr = request.params["delta"]
+
+                    if (!deltaStr.isNullOrBlank()) {
+                        val delta = deltaStr.toIntOrNull() ?: 0
+                        val res = spotifyRepository.adjustVolume(delta)
+                        CommandResponse(
+                            status = if (res.isSuccess) "ok" else "error",
+                            message = if (res.isSuccess) "Spotify volume adjusted by ${delta}%" else "Failed to adjust Spotify volume: ${res.exceptionOrNull()?.message}",
+                            action = request.action
+                        )
+                    } else if (!valueStr.isNullOrBlank()) {
+                        val vol = valueStr.toIntOrNull()?.coerceIn(0, 100) ?: 50
+                        val res = spotifyRepository.setVolume(vol)
+                        CommandResponse(
+                            status = if (res.isSuccess) "ok" else "error",
+                            message = if (res.isSuccess) "Spotify volume set to ${vol}%" else "Failed to set Spotify volume: ${res.exceptionOrNull()?.message}",
+                            action = request.action
+                        )
+                    } else {
+                        CommandResponse(
+                            status = "error",
+                            message = "Missing 'value' or 'delta' parameter for volume",
+                            action = request.action
+                        )
+                    }
+                }
+                "volume_up" -> {
+                    val delta = request.params["step"]?.toIntOrNull() ?: 5
+                    val res = spotifyRepository.adjustVolume(delta)
+                    CommandResponse(
+                        status = if (res.isSuccess) "ok" else "error",
+                        message = if (res.isSuccess) "Spotify volume raised by +${delta}%" else "Failed to raise Spotify volume: ${res.exceptionOrNull()?.message}",
+                        action = request.action
+                    )
+                }
+                "volume_down" -> {
+                    val delta = request.params["step"]?.toIntOrNull() ?: 5
+                    val res = spotifyRepository.adjustVolume(-delta)
+                    CommandResponse(
+                        status = if (res.isSuccess) "ok" else "error",
+                        message = if (res.isSuccess) "Spotify volume lowered by -${delta}%" else "Failed to lower Spotify volume: ${res.exceptionOrNull()?.message}",
+                        action = request.action
+                    )
+                }
+                "spotify_play_pause", "play_pause" -> {
+                    val res = spotifyRepository.togglePlayPause()
+                    CommandResponse(
+                        status = if (res.isSuccess) "ok" else "error",
+                        message = if (res.isSuccess) "Spotify playback toggled" else "Failed to toggle Spotify playback: ${res.exceptionOrNull()?.message}",
+                        action = request.action
+                    )
+                }
+                "spotify_next", "next" -> {
+                    val res = spotifyRepository.skipNext()
+                    CommandResponse(
+                        status = if (res.isSuccess) "ok" else "error",
+                        message = if (res.isSuccess) "Skipped to next track" else "Failed to skip next: ${res.exceptionOrNull()?.message}",
+                        action = request.action
+                    )
+                }
+                "spotify_prev", "previous", "prev" -> {
+                    val res = spotifyRepository.skipPrevious()
+                    CommandResponse(
+                        status = if (res.isSuccess) "ok" else "error",
+                        message = if (res.isSuccess) "Skipped to previous track" else "Failed to skip previous: ${res.exceptionOrNull()?.message}",
+                        action = request.action
+                    )
+                }
+                "spotify_shuffle", "shuffle" -> {
+                    val res = spotifyRepository.toggleShuffle()
+                    CommandResponse(
+                        status = if (res.isSuccess) "ok" else "error",
+                        message = if (res.isSuccess) "Spotify shuffle toggled" else "Failed to toggle shuffle: ${res.exceptionOrNull()?.message}",
+                        action = request.action
+                    )
+                }
+                "spotify_repeat", "repeat" -> {
+                    val res = spotifyRepository.toggleRepeat()
+                    CommandResponse(
+                        status = if (res.isSuccess) "ok" else "error",
+                        message = if (res.isSuccess) "Spotify repeat toggled" else "Failed to toggle repeat: ${res.exceptionOrNull()?.message}",
+                        action = request.action
+                    )
+                }
+                "spotify_like", "like" -> {
+                    val res = spotifyRepository.toggleLike()
+                    CommandResponse(
+                        status = if (res.isSuccess) "ok" else "error",
+                        message = if (res.isSuccess) "Spotify like toggled" else "Failed to toggle like: ${res.exceptionOrNull()?.message}",
+                        action = request.action
+                    )
                 }
                 else -> {
                     CommandResponse(

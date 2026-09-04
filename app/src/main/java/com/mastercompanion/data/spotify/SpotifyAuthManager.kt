@@ -23,9 +23,14 @@ class SpotifyAuthManager @Inject constructor(
 
     companion object {
         const val REDIRECT_URI = "mastercompanion://spotify/callback"
-        const val SCOPES = "user-read-playback-state user-modify-playback-state user-read-currently-playing user-read-recently-played"
+        const val SCOPES = "user-read-playback-state user-modify-playback-state user-read-currently-playing user-read-recently-played user-library-read user-library-modify"
         // User Spotify Client ID
         const val DEFAULT_CLIENT_ID = "5871091323a84960a2ee5b9d6cb2644f"
+
+        fun maskSecret(secret: String): String {
+            if (secret.length <= 8) return "••••••••"
+            return secret.take(4) + "••••••••••••••••" + secret.takeLast(4)
+        }
     }
 
     /**
@@ -47,6 +52,7 @@ class SpotifyAuthManager @Inject constructor(
             .appendQueryParameter("code_challenge_method", "S256")
             .appendQueryParameter("code_challenge", challenge)
             .appendQueryParameter("scope", SCOPES)
+            .appendQueryParameter("show_dialog", "true") // Force Spotify to display the permissions approval screen
             .build()
 
         Timber.i("Launching Spotify PKCE authorization in Custom Tab: $authUri")
@@ -75,9 +81,10 @@ class SpotifyAuthManager @Inject constructor(
                 preferencesRepository.saveSpotifyTokens(
                     accessToken = token.accessToken,
                     refreshToken = token.refreshToken,
-                    expiresInSeconds = token.expiresIn
+                    expiresInSeconds = token.expiresIn,
+                    scope = token.scope
                 )
-                Timber.i("Successfully exchanged Spotify PKCE code for tokens!")
+                Timber.i("Successfully exchanged Spotify PKCE code for tokens! Granted scopes: ${token.scope}")
                 Result.success(Unit)
             } else {
                 val err = response.errorBody()?.string() ?: "HTTP ${response.code()}"
@@ -116,7 +123,8 @@ class SpotifyAuthManager @Inject constructor(
                 preferencesRepository.saveSpotifyTokens(
                     accessToken = token.accessToken,
                     refreshToken = token.refreshToken,
-                    expiresInSeconds = token.expiresIn
+                    expiresInSeconds = token.expiresIn,
+                    scope = token.scope
                 )
                 "Bearer ${token.accessToken}"
             } else {

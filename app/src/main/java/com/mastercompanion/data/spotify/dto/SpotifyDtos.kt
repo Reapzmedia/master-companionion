@@ -20,6 +20,26 @@ data class CurrentlyPlayingResponse(
 )
 
 @Serializable
+data class PlaybackStateResponse(
+    @SerialName("device") val device: SpotifyDeviceDto? = null,
+    @SerialName("repeat_state") val repeatState: String? = null,
+    @SerialName("shuffle_state") val shuffleState: Boolean? = null,
+    @SerialName("is_playing") val isPlaying: Boolean = false,
+    @SerialName("progress_ms") val progressMs: Long = 0L,
+    @SerialName("item") val item: TrackDto? = null
+)
+
+@Serializable
+data class SpotifyDeviceDto(
+    @SerialName("id") val id: String? = null,
+    @SerialName("is_active") val isActive: Boolean = false,
+    @SerialName("name") val name: String = "",
+    @SerialName("type") val type: String = "",
+    @SerialName("volume_percent") val volumePercent: Int? = null,
+    @SerialName("supports_volume") val supportsVolume: Boolean = true
+)
+
+@Serializable
 data class RecentlyPlayedResponse(
     @SerialName("items") val items: List<PlayHistoryItemDto> = emptyList()
 )

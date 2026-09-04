@@ -9,6 +9,8 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
+import androidx.compose.material3.lightColorScheme
+
 private val DarkColorScheme = darkColorScheme(
     primary = AccentEmerald,
     secondary = AccentCyan,
@@ -23,11 +25,26 @@ private val DarkColorScheme = darkColorScheme(
     error = AccentCrimson
 )
 
+private val LightColorScheme = lightColorScheme(
+    primary = AccentEmerald,
+    secondary = AccentCyan,
+    tertiary = AccentAmber,
+    background = PorcelainBackground,
+    surface = PorcelainSurface,
+    surfaceVariant = PorcelainCard,
+    onPrimary = PureBlack,
+    onSecondary = PureBlack,
+    onBackground = PorcelainTextPrimary,
+    onSurface = PorcelainTextPrimary,
+    error = AccentCrimson
+)
+
 @Composable
 fun MasterCompanionTheme(
+    whiteTheme: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = DarkColorScheme
+    val colorScheme = if (whiteTheme) LightColorScheme else DarkColorScheme
     val view = LocalView.current
 
     if (!view.isInEditMode) {
@@ -37,8 +54,8 @@ fun MasterCompanionTheme(
                 window.statusBarColor = colorScheme.background.toArgb()
                 window.navigationBarColor = colorScheme.background.toArgb()
                 WindowCompat.getInsetsController(window, view).apply {
-                    isAppearanceLightStatusBars = false
-                    isAppearanceLightNavigationBars = false
+                    isAppearanceLightStatusBars = whiteTheme
+                    isAppearanceLightNavigationBars = whiteTheme
                 }
             }
         }

@@ -9,8 +9,10 @@ import com.mastercompanion.domain.model.BatteryData
 import com.mastercompanion.domain.model.CommandRequest
 import com.mastercompanion.domain.model.CommandResponse
 import com.mastercompanion.domain.model.SpotifyTrack
+import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.Application
 import io.ktor.server.application.call
 import io.ktor.server.application.install
 import io.ktor.server.cio.CIO
@@ -21,9 +23,13 @@ import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.header
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -48,102 +54,160 @@ class CommandBridgeServer @Inject constructor(
     private val preferencesRepository: PreferencesRepository,
     private val json: Json
 ) {
-    private var server: ApplicationEngine? = null
+    private var bridgeServer: ApplicationEngine? = null
+    private var webServer: ApplicationEngine? = null
 
-    fun start(port: Int = 8420) {
-        if (server != null) {
-            Timber.w("Ktor Command Bridge Server is already running")
+    private val _isRunning = MutableStateFlow(false)
+    val isRunning: StateFlow<Boolean> = _isRunning.asStateFlow()
+
+    fun start(webPort: Int = 8060, bridgePort: Int = 8420) {
+        if (bridgeServer != null || webServer != null) {
+            Timber.w("Ktor Command Bridge Servers are already running")
             return
         }
 
-        Timber.i("Starting Ktor Command Bridge Server on port $port...")
-        server = embeddedServer(CIO, port = port, host = "0.0.0.0") {
-            install(ContentNegotiation) {
-                json(json)
-            }
-            install(StatusPages) {
-                exception<Throwable> { call, cause ->
-                    Timber.e(cause, "Unhandled error in Ktor server route")
-                    call.respond(
-                        HttpStatusCode.InternalServerError,
-                        CommandResponse(
-                            status = "error",
-                            message = "Internal server error: ${cause.localizedMessage}"
-                        )
+        Timber.i("Starting Ktor Command Bridge Servers (Web: $webPort, Bridge: $bridgePort)...")
+        try {
+            bridgeServer = embeddedServer(CIO, port = bridgePort, host = "0.0.0.0") {
+                configureAppServer(webPort)
+            }.start(wait = false)
+
+            webServer = embeddedServer(CIO, port = webPort, host = "0.0.0.0") {
+                configureAppServer(webPort)
+            }.start(wait = false)
+
+            _isRunning.value = true
+            Timber.i("Ktor servers started on ports $bridgePort and $webPort")
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to start Ktor servers")
+            stop()
+        }
+    }
+
+    private fun Application.configureAppServer(webPort: Int) {
+        install(ContentNegotiation) {
+            json(json)
+        }
+        install(StatusPages) {
+            exception<Throwable> { call, cause ->
+                Timber.e(cause, "Unhandled error in Ktor server route")
+                call.respond(
+                    HttpStatusCode.InternalServerError,
+                    CommandResponse(
+                        status = "error",
+                        message = "Internal server error: ${cause.localizedMessage}"
                     )
-                }
+                )
+            }
+        }
+
+        routing {
+            // HTML Dashboard on root
+            get("/") {
+                val html = WebDashboardHtml.getHtml(deviceIp = "0.0.0.0", port = webPort)
+                call.respondText(html, ContentType.Text.Html)
             }
 
-            routing {
-                get("/ping") {
-                    call.respond(
-                        CommandResponse(
-                            status = "ok",
-                            message = "Pong from Master Companion",
-                            timestamp = System.currentTimeMillis()
-                        )
-                    )
-                }
-
-                get("/commands") {
-                    call.respond(commandRegistry.getAllCommands())
-                }
-
-                get("/status") {
-                    val status = BridgeStatus(
+            get("/ping") {
+                call.respond(
+                    CommandResponse(
                         status = "ok",
-                        battery = batteryRepository.batteryData.value,
-                        currentTrack = spotifyRepository.currentTrack.value,
+                        message = "Pong from Master Companion",
                         timestamp = System.currentTimeMillis()
                     )
-                    call.respond(status)
-                }
+                )
+            }
 
-                post("/command") {
-                    val expectedToken = preferencesRepository.authTokenFlow.first()
-                    val clientToken = call.request.header("X-Auth-Token")
+            get("/commands") {
+                call.respond(commandRegistry.getAllCommands())
+            }
 
-                    if (expectedToken.isNotBlank() && expectedToken != "master-companion-default-token") {
-                        if (clientToken != expectedToken) {
-                            call.respond(
-                                HttpStatusCode.Unauthorized,
-                                CommandResponse(
-                                    status = "error",
-                                    message = "Unauthorized: Invalid or missing X-Auth-Token header"
-                                )
-                            )
-                            return@post
-                        }
-                    }
+            get("/status") {
+                val status = BridgeStatus(
+                    status = "ok",
+                    battery = batteryRepository.batteryData.value,
+                    currentTrack = spotifyRepository.currentTrack.value,
+                    timestamp = System.currentTimeMillis()
+                )
+                call.respond(status)
+            }
 
-                    val request = try {
-                        call.receive<CommandRequest>()
-                    } catch (e: Exception) {
-                        Timber.e(e, "Malformed JSON in /command request")
+            // Web Dashboard direct API endpoints
+            post("/api/wol") {
+                val result = commandExecutor.execute(CommandRequest(action = "wol"))
+                call.respond(result)
+            }
+
+            post("/api/media/play-pause") {
+                spotifyRepository.togglePlayPause()
+                call.respond(CommandResponse(status = "ok", message = "Toggled play/pause"))
+            }
+
+            post("/api/media/next") {
+                spotifyRepository.skipNext()
+                call.respond(CommandResponse(status = "ok", message = "Skipped to next track"))
+            }
+
+            post("/api/media/prev") {
+                spotifyRepository.skipPrevious()
+                call.respond(CommandResponse(status = "ok", message = "Skipped to previous track"))
+            }
+
+            post("/api/battery/toggle-limit") {
+                batteryRepository.toggleChargeLimit()
+                call.respond(CommandResponse(status = "ok", message = "Toggled battery charge limit"))
+            }
+
+            // Authenticated Command Bridge endpoint
+            post("/command") {
+                val expectedToken = preferencesRepository.authTokenFlow.first()
+                val clientToken = call.request.header("X-Auth-Token")
+
+                if (expectedToken.isNotBlank() && expectedToken != "master-companion-default-token") {
+                    if (clientToken != expectedToken) {
                         call.respond(
-                            HttpStatusCode.BadRequest,
+                            HttpStatusCode.Unauthorized,
                             CommandResponse(
                                 status = "error",
-                                message = "Invalid JSON body: ${e.message}"
+                                message = "Unauthorized: Invalid or missing X-Auth-Token header"
                             )
                         )
                         return@post
                     }
-
-                    val result = commandExecutor.execute(request)
-                    call.respond(result)
                 }
+
+                val request = try {
+                    call.receive<CommandRequest>()
+                } catch (e: Exception) {
+                    Timber.e(e, "Malformed JSON in /command request")
+                    call.respond(
+                        HttpStatusCode.BadRequest,
+                        CommandResponse(
+                            status = "error",
+                            message = "Invalid JSON body: ${e.message}"
+                        )
+                    )
+                    return@post
+                }
+
+                val result = commandExecutor.execute(request)
+                call.respond(result)
             }
-        }.start(wait = false)
-        Timber.i("Ktor Command Bridge Server started on port $port")
+        }
     }
 
     fun stop() {
-        server?.let {
-            Timber.i("Stopping Ktor Command Bridge Server...")
-            it.stop(gracePeriodMillis = 1000, timeoutMillis = 2000)
-            server = null
-            Timber.i("Ktor Command Bridge Server stopped")
+        Timber.i("Stopping Ktor Command Bridge Servers...")
+        try {
+            bridgeServer?.stop(gracePeriodMillis = 500, timeoutMillis = 1500)
+            webServer?.stop(gracePeriodMillis = 500, timeoutMillis = 1500)
+        } catch (e: Exception) {
+            Timber.e(e, "Error stopping servers")
+        } finally {
+            bridgeServer = null
+            webServer = null
+            _isRunning.value = false
+            Timber.i("Ktor Command Bridge Servers stopped")
         }
     }
 }

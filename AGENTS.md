@@ -184,44 +184,52 @@ master-companion/
 Gemini should execute the remaining codebase in this sequential order:
 
 ### Phase 1: Dependency Injection & Preferences Layer
-- [ ] Create `app/src/main/java/com/mastercompanion/data/prefs/PreferencesRepository.kt` (DataStore wrapper for auth token, charge limit threshold, PC IP, Spotify tokens).
-- [ ] Create Hilt modules:
+- [x] Create `app/src/main/java/com/mastercompanion/data/prefs/PreferencesRepository.kt` (DataStore wrapper for auth token, charge limit threshold, PC IP, Spotify tokens).
+- [x] Create Hilt modules:
   - `di/AppModule.kt` (provides ApplicationContext, DataStore, CoroutineDispatchers).
-  - `di/NetworkModule.kt` (provides OkHttpClient, Retrofit, Json serializer).
+  - `di/NetworkModule.kt` (provides OkHttpClient, Retrofit, Json serializer, LRCLIB & Lyrics.ovh clients).
   - `di/RepositoryModule.kt` (binds all repository interfaces).
 
 ### Phase 2: Root Battery Guard Engine
-- [ ] Create `data/battery/BatteryDataSource.kt` (interface).
-- [ ] Create `data/battery/RootBatteryDataSource.kt` (polls sysfs voltage/current via `RootShell.kt`, writes `charging_enabled`).
-- [ ] Create `data/battery/StandardBatteryDataSource.kt` (fallback via `BatteryManager` broadcast).
-- [ ] Create `data/battery/BatteryRepository.kt` (emits `StateFlow<BatteryData>`, manages 80% charge threshold auto-halt and 75% resume).
-- [ ] Wire `service/BatteryGuardService.kt` to run the threshold monitoring loop in the foreground.
+- [x] Create `data/battery/BatteryDataSource.kt` (interface).
+- [x] Create `data/battery/RootBatteryDataSource.kt` (polls sysfs voltage/current via `RootShell.kt`, writes `charging_enabled`).
+- [x] Create `data/battery/StandardBatteryDataSource.kt` (fallback via `BatteryManager` broadcast).
+- [x] Create `data/battery/BatteryRepository.kt` (emits `StateFlow<BatteryData>`, manages 80% charge threshold auto-halt and 75% resume).
+- [x] Wire `service/BatteryGuardService.kt` to run the threshold monitoring loop in the foreground.
 
 ### Phase 3: Spotify Web API & OAuth PKCE Engine
-- [ ] Create `data/spotify/dto/SpotifyDtos.kt` (DTOs for currently-playing, recently-played, token responses).
-- [ ] Create `data/spotify/SpotifyApi.kt` (Retrofit interface for Spotify Web API).
-- [ ] Create `data/spotify/SpotifyAuthManager.kt` (OAuth 2.0 PKCE flow: generates `code_verifier` & `code_challenge`, opens custom tab, handles `mastercompanion://spotify/callback`, exchanges token).
-- [ ] Create `data/spotify/SpotifyRepository.kt` (polls playback every 1-2s, falls back to recently played, exposes play/pause/skip/seek).
+- [x] Create `data/spotify/dto/SpotifyDtos.kt` (DTOs for currently-playing, recently-played, library, and token responses).
+- [x] Create `data/spotify/SpotifyApi.kt` (Retrofit interface for Spotify Web API, updated to modern `/v1/me/library` endpoints).
+- [x] Create `data/spotify/SpotifyAuthManager.kt` (OAuth 2.0 PKCE flow: generates `code_verifier` & `code_challenge`, opens custom tab, handles `mastercompanion://spotify/callback`, exchanges token).
+- [x] Create `data/spotify/SpotifyRepository.kt` (polls playback every 1-2s, falls back to recently played, exposes play/pause/skip/seek/volume/like).
 
 ### Phase 4: Embedded Ktor Command Bridge & Network Utilities
-- [ ] Create `data/network/WolSender.kt` (broadcasts UDP magic packet on port 9 to wake PC).
-- [ ] Create `data/command/CommandRegistry.kt` (parses `assets/commands.json`).
-- [ ] Create `data/command/CommandExecutor.kt` (executes actions: `toggle_charge_limit`, `navigate`, `wol`, `audio_toggle`, `set_brightness`, `exec_shell`).
-- [ ] Create `server/CommandBridgeServer.kt` (configures Ktor CIO server with ContentNegotiation, status pages, CORS, and auth validation on port 8420).
-- [ ] Wire `service/CommandBridgeService.kt` to start/stop the Ktor engine.
+- [x] Create `data/network/WolSender.kt` (broadcasts UDP magic packet on port 9 to wake PC).
+- [x] Create `data/command/CommandRegistry.kt` (parses `assets/commands.json`).
+- [x] Create `data/command/CommandExecutor.kt` (executes actions: `toggle_charge_limit`, `navigate`, `wol`, `audio_toggle`, `set_brightness`, `exec_shell`).
+- [x] Create `server/CommandBridgeServer.kt` (configures Ktor CIO server on port 8420 & Web Dashboard on port 8060 with SSE).
+- [x] Wire `service/CommandBridgeService.kt` to start/stop the Ktor engine.
 
 ### Phase 5: Low-Latency PC Audio Passthrough Receiver
-- [ ] Create `data/audio/PacketParser.kt` (unpacks `>BII` header: codec flag, sequence, timestamp).
-- [ ] Create `data/audio/JitterBuffer.kt` (smooths packet timing variance).
-- [ ] Create `data/audio/AudioPlayer.kt` (manages `AudioTrack` 48kHz stereo stream).
-- [ ] Wire `service/AudioReceiverService.kt` to open UDP socket on port 8421 and feed incoming frames to `AudioPlayer`.
+- [x] Create `data/audio/PacketParser.kt` (unpacks `>BII` header: codec flag, sequence, timestamp).
+- [x] Create `data/audio/JitterBuffer.kt` (smooths packet timing variance).
+- [x] Create `data/audio/AudioPlayer.kt` (manages `AudioTrack` 48kHz stereo stream).
+- [x] Wire `service/AudioReceiverService.kt` to open UDP socket on port 8421 and feed incoming frames to `AudioPlayer`.
 
 ### Phase 6: Multi-Page Standby Dashboard UI Suite
-- [ ] Create `ui/home/HomePage.kt` (Hero Standby Clock `20:45` + Battery wattage card + charge limit toggle).
-- [ ] Create `ui/audio/AudioPage.kt` (PC audio streaming dashboard, live stats: packet rate, loss, latency, volume slider).
-- [ ] Create `ui/system/SystemPage.kt` (Hardware monitor, root diagnostic, Ktor HTTP bridge logs).
-- [ ] Create `ui/settings/SettingsPage.kt` (Charge limit threshold, Auth Token display/copy, Spotify account login).
-- [ ] Wire all 4 pages into `ui/dashboard/DashboardHost.kt` with `HorizontalPager`.
+- [x] Create `ui/home/HomePage.kt` (Hero Standby Clock with 5 selectable styles + Google Calendar widget + Battery wattage telemetry).
+- [x] Create `ui/audio/AudioPage.kt` (PC audio streaming dashboard, live stats: packet rate, loss, latency, volume slider).
+- [x] Create `ui/system/SystemPage.kt` (Hardware monitor, root diagnostic, Ktor HTTP bridge logs).
+- [x] Create `ui/settings/SettingsPage.kt` (Charge limit threshold, Auth Token display/copy, Spotify account login, drawer settings).
+- [x] Wire all pages into `ui/dashboard/DashboardHost.kt` with `HorizontalPager`.
+
+### Phase 7: Advanced Extras & Engine Polish
+- [x] 5 Distinct Standby Clock Styles (`ui/home/clock/ClockStyles.kt`: Minimalist, Analog Precision Gauge, Retro Split-Flap, Cyberpunk Terminal, Word Matrix).
+- [x] 5 Spotify Player Layouts (`ui/home/MusicPage.kt`: Standard Car View, Vinyl Turntable, Progressive Blur Synced Karaoke Lyrics, Minimal Standby Clock, Full-Bleed Artwork).
+- [x] Multi-Source Lyrics Engine (`data/lyrics/LyricsRepository.kt`: LRCLIB primary + Lyrics.ovh fallback with local cache).
+- [x] Web Remote Control Dashboard (`server/WebDashboardHtml.kt`: modern glassmorphic web interface on port 8060).
+- [x] Google Calendar Sync (`data/calendar/CalendarRepository.kt`: native Android Calendar ContentProvider query).
+- [x] Bidirectional Volume Synchronization (knob / slider updates both Android stream and remote Spotify device).
 
 ---
 

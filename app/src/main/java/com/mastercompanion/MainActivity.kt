@@ -1,7 +1,9 @@
 package com.mastercompanion
 
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.os.Bundle
+import android.view.OrientationEventListener
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -10,6 +12,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -32,8 +38,46 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var spotifyAuthManager: SpotifyAuthManager
 
+    private var orientationListener: OrientationEventListener? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // ═══ Default to Horizontal (Landscape) for Smart Desk Standby Companion ═══
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+
+        // Dynamically allow vertical orientation if user holds phone upright
+        orientationListener = object : OrientationEventListener(this) {
+            override fun onOrientationChanged(orientation: Int) {
+                if (orientation == ORIENTATION_UNKNOWN) return
+                // Held upright in portrait (330° - 360° or 0° - 30°)
+                if (orientation in 330..360 || orientation in 0..30) {
+                    if (requestedOrientation != ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT) {
+                        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT
+                    }
+                } else if (orientation in 60..120 || orientation in 240..300) {
+                    // Landscape / Horizontal (resting on dock or held sideways)
+                    if (requestedOrientation != ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE) {
+                        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                    }
+                }
+            }
+        }
+        if (orientationListener?.canDetectOrientation() == true) {
+            orientationListener?.enable()
+        }
+
+        // Allow app to display and turn screen on when docked/charging
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        } else {
+            @Suppress("DEPRECATION")
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+            )
+        }
 
         // Keep screen on while docked on desk
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -46,7 +90,21 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MasterCompanionTheme {
-                com.mastercompanion.ui.dashboard.DashboardHost()
+                var isSplashVisible by remember { mutableStateOf(true) }
+
+                androidx.compose.animation.Crossfade(
+                    targetState = isSplashVisible,
+                    animationSpec = androidx.compose.animation.core.tween(500),
+                    label = "splash_crossfade"
+                ) { showSplash: Boolean ->
+                    if (showSplash) {
+                        com.mastercompanion.ui.common.SplashScreen(
+                            onLoaded = { isSplashVisible = false }
+                        )
+                    } else {
+                        com.mastercompanion.ui.dashboard.DashboardHost()
+                    }
+                }
             }
         }
     }
@@ -69,6 +127,12 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        orientationListener?.disable()
+        orientationListener = null
     }
 
     private fun enableImmersiveMode() {
