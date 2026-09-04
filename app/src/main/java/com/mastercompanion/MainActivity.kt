@@ -89,20 +89,25 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
 
         setContent {
-            MasterCompanionTheme {
-                var isSplashVisible by remember { mutableStateOf(true) }
+            androidx.compose.runtime.CompositionLocalProvider(
+                androidx.lifecycle.compose.LocalLifecycleOwner provides this,
+                androidx.compose.ui.platform.LocalLifecycleOwner provides this
+            ) {
+                MasterCompanionTheme {
+                    var isSplashVisible by remember { mutableStateOf(true) }
 
-                androidx.compose.animation.Crossfade(
-                    targetState = isSplashVisible,
-                    animationSpec = androidx.compose.animation.core.tween(500),
-                    label = "splash_crossfade"
-                ) { showSplash: Boolean ->
-                    if (showSplash) {
-                        com.mastercompanion.ui.common.SplashScreen(
-                            onLoaded = { isSplashVisible = false }
-                        )
-                    } else {
-                        com.mastercompanion.ui.dashboard.DashboardHost()
+                    androidx.compose.animation.Crossfade(
+                        targetState = isSplashVisible,
+                        animationSpec = androidx.compose.animation.core.tween(500),
+                        label = "splash_crossfade"
+                    ) { showSplash: Boolean ->
+                        if (showSplash) {
+                            com.mastercompanion.ui.common.SplashScreen(
+                                onLoaded = { isSplashVisible = false }
+                            )
+                        } else {
+                            com.mastercompanion.ui.dashboard.DashboardHost()
+                        }
                     }
                 }
             }

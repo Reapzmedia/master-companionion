@@ -48,3 +48,13 @@
 # ═══ SLF4J / Logging ═══
 -dontwarn org.slf4j.**
 -dontwarn org.slf4j.impl.**
+
+# ═══ AndroidX Lifecycle, ViewModel & ViewTree ═══
+-keep class androidx.lifecycle.** { *; }
+-keep class androidx.savedstate.** { *; }
+-dontwarn androidx.lifecycle.**
+-dontwarn androidx.savedstate.**
+
+# ═══ Compose & UI Platform ═══
+-keep class androidx.compose.** { *; }
+-dontwarn androidx.compose.**
