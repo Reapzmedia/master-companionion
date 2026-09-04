@@ -13,5 +13,7 @@ data class SpotifyTrack(
     val progressMs: Long = 0L,
     val isPlaying: Boolean = false,
     val isRecentFallback: Boolean = false,
+    val playlistContext: String = "Liked Songs",
+    val releaseYear: String = "",
     val timestamp: Long = System.currentTimeMillis()
 )

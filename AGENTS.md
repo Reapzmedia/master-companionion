@@ -46,9 +46,20 @@ The UI direction was explicitly established with the user:
      - Secondary Action Row: Smart Shuffle (`🔀✨`), Add to Library / Like (`(+)`), Spotify Connect devices (`((•))`), Repeat/Loop (`🔁`).
      - Footer: `^ SPOTIFY` device picker and Volume speaker icon.
      - Bottom Center: Subtle swipeable multi-page pagination dots.
-3. **Orientation**: Locked landscape (`screenOrientation="landscape"`).
-4. **Display Power**: Immersive mode (system bars hidden via `WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE`), with `FLAG_KEEP_SCREEN_ON` when docked.
-5. **OLED Black Standby Mode**: For the Home Clock page, true black `#000000` is mandatory to eliminate backlight glow and prevent burn-in.
+3. **Orientation & Responsiveness**:
+   - Primary: Docked landscape mode.
+   - Secondary: Adaptive full portrait (vertical) support for handheld use (`android:screenOrientation="fullUser"`).
+4. **Background Dynamics**:
+   - Seamless 600ms crossfade animation when changing tracks and album artwork.
+   - Atmospheric radial dark vignette for high contrast and legibility.
+5. **Multiple Layout Modes**:
+   - **Standard View**: Two-column landscape or vertical portrait Spotify standby player.
+   - **Lyrics View (Exact Spotify Standby Format)**:
+     - **Top-Left**: Playlist context (`PLAYING FROM PLAYLIST` + `Liked Songs` with list icon).
+     - **Left Column**: Square album art (`16dp` radius), metadata with icons (`🎵 Title`, `👤 Artist`, `💿 Album • Year`), compact colored control dock (Heart, Shuffle, Prev, Play, Next, Repeat, Lyrics toggle), and seekbar with timestamps.
+     - **Right Column**: Synced live karaoke lyrics. Active line is crisp, bold white (`32sp`); upcoming lines are progressively dimmed and blurred.
+   - **Minimal Standby View**: Oversized digital clock (`110sp`) with compact playback telemetry for clean desk clock usage.
+6. **OLED Black Standby Mode**: For the Home Clock page, true black `#000000` is mandatory to eliminate backlight glow and prevent burn-in.
 
 ---
 
