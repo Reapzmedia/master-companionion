@@ -38,7 +38,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MasterCompanionTheme {
-                DashboardRootScreen()
+                com.mastercompanion.ui.dashboard.DashboardHost()
             }
         }
     }
@@ -55,7 +55,6 @@ class MainActivity : ComponentActivity() {
             val code = uri.getQueryParameter("code")
             val error = uri.getQueryParameter("error")
             Timber.i("Spotify OAuth Callback received. code present: ${code != null}, error: $error")
-            // Pass authorization code to SpotifyAuthManager via ViewModel / Event Bus
         }
     }
 
@@ -65,20 +64,5 @@ class MainActivity : ComponentActivity() {
         insetsController.systemBarsBehavior =
             WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         insetsController.hide(WindowInsetsCompat.Type.systemBars())
-    }
-}
-
-@Composable
-fun DashboardRootScreen() {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(PureBlack),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "Master Companion Standby Dashboard",
-            color = Color.White
-        )
     }
 }
