@@ -44,3 +44,7 @@
 -keep class dagger.hilt.** { *; }
 -keep class javax.inject.** { *; }
 -keep class * extends dagger.hilt.android.internal.managers.ViewComponentManager$FragmentContextWrapper { *; }
+
+# ═══ SLF4J / Logging ═══
+-dontwarn org.slf4j.**
+-dontwarn org.slf4j.impl.**
