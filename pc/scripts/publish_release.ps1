@@ -1,76 +1,70 @@
 $ErrorActionPreference = "Stop"
 
-# Get GitHub token from git credentials
-$credOutput = @("protocol=https", "host=github.com", "") | git credential fill
-$tokenLine = $credOutput | Where-Object { $_ -like "password=*" }
-if (-not $tokenLine) {
-    throw "Could not retrieve GitHub token from git credential manager."
+# Get GitHub credentials from Git Credential Manager
+$credInput = @"
+protocol=https
+host=github.com
+"@
+$credOutput = $credInput | git credential fill
+$token = ""
+foreach ($line in $credOutput -split "`n") {
+    if ($line -match "^password=(.+)$") {
+        $token = $matches[1].Trim()
+    }
 }
-$token = $tokenLine.Substring(9)
 
+if (-not $token) {
+    Write-Error "Could not retrieve GitHub token from git credential manager."
+    exit 1
+}
+
+$repo = "Reapzmedia/master-companionion"
+$tag = "v1.0.1"
+$releaseName = "Master Companion v1.0.1 - Hotfix and Telemetry"
+$notesPath = Join-Path $PSScriptRoot "..\..\RELEASE_NOTES.md"
+$body = if (Test-Path $notesPath) { Get-Content -Raw -Encoding UTF8 $notesPath } else { "Release $tag" }
+
+Write-Host "Creating GitHub Release $tag for $repo..."
 $headers = @{
     "Authorization" = "Bearer $token"
     "Accept" = "application/vnd.github+json"
-    "X-GitHub-Api-Version" = "2022-11-28"
-    "User-Agent" = "MasterCompanion-Deployer"
+    "User-Agent" = "MasterCompanion-ReleaseScript"
 }
 
-$releaseNotesPath = (Resolve-Path (Join-Path $PSScriptRoot "..\..\RELEASE_NOTES.md")).Path
-if (Test-Path $releaseNotesPath) {
-    $releaseBody = [System.IO.File]::ReadAllText($releaseNotesPath, [System.Text.Encoding]::UTF8)
-} else {
-    $releaseBody = "Master Companion v1.0.0 Stable Release"
-}
-
-$payload = @{
-    tag_name = "v1.0.0"
-    target_commitish = "master"
-    name = "Master Companion v1.0.0 Stable"
-    body = $releaseBody
+$releasePayload = @{
+    tag_name = $tag
+    name = $releaseName
+    body = $body
     draft = $false
     prerelease = $false
 } | ConvertTo-Json
 
-# Check if release already exists
-$existingRelease = $null
-try {
-    $existingRelease = Invoke-RestMethod -Uri "https://api.github.com/repos/reapzmedia/master-companionion/releases/tags/v1.0.0" -Method Get -Headers $headers
-    Write-Host "Found existing release for v1.0.0: $($existingRelease.html_url)"
-} catch {
-    Write-Host "No existing release found for v1.0.0, creating new release..."
-}
+$createUrl = "https://api.github.com/repos/$repo/releases"
+$releaseResponse = Invoke-RestMethod -Uri $createUrl -Method Post -Headers $headers -Body $releasePayload -ContentType "application/json"
 
-if (-not $existingRelease) {
-    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/reapzmedia/master-companionion/releases" -Method Post -Headers $headers -Body $payload -ContentType "application/json"
-} else {
-    $release = $existingRelease
-}
+$releaseId = $releaseResponse.id
+Write-Host "Release created successfully with ID: $releaseId"
 
-Write-Host "Release URL: $($release.html_url)"
-
-$apkPath = Resolve-Path "app\build\outputs\apk\release\app-release.apk"
+$apkPath = Join-Path $PSScriptRoot "..\..\app\build\outputs\apk\release\app-release.apk"
 if (-not (Test-Path $apkPath)) {
-    throw "Release APK not found at $apkPath"
+    Write-Error "Release APK not found at: $apkPath"
+    exit 1
 }
 
-# Check if asset already uploaded
-$existingAsset = $release.assets | Where-Object { $_.name -eq "app-release.apk" }
-if ($existingAsset) {
-    Write-Host "Deleting existing asset..."
-    Invoke-RestMethod -Uri $existingAsset.url -Method Delete -Headers $headers
-}
+$apkItem = Get-Item $apkPath
+Write-Host "Uploading asset app-release.apk..."
 
-$uploadUrl = $release.upload_url -replace '\{\?name,label\}', '?name=app-release.apk'
-
-Write-Host "Uploading app-release.apk ($( (Get-Item $apkPath).Length / 1MB ) MB)..."
+$uploadUrl = "https://uploads.github.com/repos/$repo/releases/$releaseId/assets?name=app-release.apk"
 $uploadHeaders = @{
     "Authorization" = "Bearer $token"
     "Accept" = "application/vnd.github+json"
-    "X-GitHub-Api-Version" = "2022-11-28"
+    "User-Agent" = "MasterCompanion-ReleaseScript"
     "Content-Type" = "application/vnd.android.package-archive"
-    "User-Agent" = "MasterCompanion-Deployer"
 }
 
-$assetResponse = Invoke-RestMethod -Uri $uploadUrl -Method Post -Headers $uploadHeaders -InFile $apkPath
+$apkBytes = [System.IO.File]::ReadAllBytes($apkPath)
+$assetResponse = Invoke-RestMethod -Uri $uploadUrl -Method Post -Headers $uploadHeaders -Body $apkBytes
+
 Write-Host "Asset uploaded successfully!"
 Write-Host "Download URL: $($assetResponse.browser_download_url)"
+Write-Host "Release URL: $($releaseResponse.html_url)"

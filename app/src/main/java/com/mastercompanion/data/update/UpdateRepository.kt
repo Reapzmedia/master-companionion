@@ -1,7 +1,11 @@
 package com.mastercompanion.data.update
 
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageInstaller
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.core.content.FileProvider
 import com.mastercompanion.BuildConfig
 import com.mastercompanion.di.IoDispatcher
@@ -132,9 +136,20 @@ class UpdateRepository @Inject constructor(
             }
 
             Timber.i("APK downloaded successfully (${apkFile.length()} bytes) to ${apkFile.absolutePath}")
-            _updateStatus.value = UpdateStatus.ReadyToInstall(apkFile.absolutePath)
 
-            // Trigger Installation
+            // 1. Rigorous Security Verification
+            _updateStatus.value = UpdateStatus.VerifyingSecurity
+            val isSecure = verifyApkSecurity(apkFile)
+            if (!isSecure) {
+                val err = "Security verification failed: APK signature or package identity mismatch!"
+                Timber.e(err)
+                apkFile.delete()
+                _updateStatus.value = UpdateStatus.Error(err)
+                return@withContext Result.failure(SecurityException(err))
+            }
+
+            // 2. Autonomous Installation & Restart
+            _updateStatus.value = UpdateStatus.Installing("Installing update and restarting...")
             triggerInstallation(apkFile)
 
             Result.success(apkFile)
@@ -145,37 +160,170 @@ class UpdateRepository @Inject constructor(
         }
     }
 
+    /**
+     * Cryptographically validates that the downloaded APK matches our package identity,
+     * possesses valid signatures matching the installed app, and does not downgrade the version.
+     */
+    @Suppress("DEPRECATION")
+    fun verifyApkSecurity(apkFile: File): Boolean {
+        try {
+            val pm = context.packageManager
+            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                PackageManager.GET_SIGNING_CERTIFICATES
+            } else {
+                PackageManager.GET_SIGNATURES
+            }
+
+            val archiveInfo = pm.getPackageArchiveInfo(apkFile.absolutePath, flags)
+            if (archiveInfo == null) {
+                Timber.e("Security Check Failed: Unable to parse downloaded APK archive.")
+                return false
+            }
+
+            // 1. Verify Package Name
+            if (archiveInfo.packageName != context.packageName) {
+                Timber.e("Security Check Failed: Package name mismatch! Expected: ${context.packageName}, Got: ${archiveInfo.packageName}")
+                return false
+            }
+
+            // 2. Prevent Downgrade Attack
+            val currentVersionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                pm.getPackageInfo(context.packageName, 0).longVersionCode
+            } else {
+                pm.getPackageInfo(context.packageName, 0).versionCode.toLong()
+            }
+
+            val archiveVersionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                archiveInfo.longVersionCode
+            } else {
+                archiveInfo.versionCode.toLong()
+            }
+
+            if (archiveVersionCode < currentVersionCode) {
+                Timber.e("Security Check Failed: Version downgrade attempted! Current: $currentVersionCode, APK: $archiveVersionCode")
+                return false
+            }
+
+            // 3. Cryptographic Signature Verification
+            val currentPkgInfo = pm.getPackageInfo(context.packageName, flags)
+            val signaturesMatch = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val currentCerts = currentPkgInfo.signingInfo?.signingCertificateHistory
+                    ?: currentPkgInfo.signingInfo?.apkContentsSigners
+                val archiveCerts = archiveInfo.signingInfo?.signingCertificateHistory
+                    ?: archiveInfo.signingInfo?.apkContentsSigners
+                if (currentCerts != null && archiveCerts != null) {
+                    currentCerts.any { cur ->
+                        archiveCerts.any { arch -> cur.toByteArray().contentEquals(arch.toByteArray()) }
+                    }
+                } else false
+            } else {
+                val currentSigs = currentPkgInfo.signatures
+                val archiveSigs = archiveInfo.signatures
+                if (currentSigs != null && archiveSigs != null) {
+                    currentSigs.any { cur ->
+                        archiveSigs.any { arch -> cur.toByteArray().contentEquals(arch.toByteArray()) }
+                    }
+                } else false
+            }
+
+            if (!signaturesMatch) {
+                Timber.e("Security Check Failed: APK cryptographic signature does not match installed application key!")
+                return false
+            }
+
+            Timber.i("Security Check PASSED: APK verified authentic (package=${archiveInfo.packageName}, vCode=$archiveVersionCode)")
+            return true
+        } catch (e: Exception) {
+            Timber.e(e, "Exception during APK security verification")
+            return false
+        }
+    }
+
     private suspend fun triggerInstallation(apkFile: File) {
-        // Option 1: Root Silent Installation
+        // Option 1: Root Silent Installation with Autonomous Background Relaunch
         if (rootShell.isRootAvailable()) {
-            Timber.i("Attempting silent root installation of ${apkFile.absolutePath}...")
-            val result = rootShell.execute("pm install -r \"${apkFile.absolutePath}\"")
+            Timber.i("Root access detected! Staging APK for silent installation...")
+            val stagedApk = "/data/local/tmp/master-companion-update.apk"
+            val cmd = """
+                cp "${apkFile.absolutePath}" "$stagedApk" && \
+                chmod 644 "$stagedApk" && \
+                pm install -r -d "$stagedApk" && \
+                rm -f "$stagedApk" && \
+                (sh -c 'sleep 2; am start -n com.mastercompanion/.MainActivity' &)
+            """.trimIndent().replace("\n", " ")
+
+            val result = rootShell.execute(cmd)
             val output = result.getOrNull() ?: ""
-            if (result.isSuccess && output.contains("Success", ignoreCase = true)) {
-                Timber.i("Silent Root PM Install successful!")
+            if (result.isSuccess && (output.contains("Success", ignoreCase = true) || output.isBlank())) {
+                Timber.i("Silent root installation executed successfully! App will restart automatically.")
+                _updateStatus.value = UpdateStatus.Idle
                 return
             } else {
-                Timber.w("Root PM install returned: $output. Falling back to PackageInstaller.")
+                Timber.w("Silent root installation returned: $output. Attempting PackageInstaller session.")
             }
         }
 
-        // Option 2: Android Standard PackageInstaller Intent via FileProvider
+        // Option 2: Android Native PackageInstaller Session (Self-Install with Auto-Restart via ACTION_MY_PACKAGE_REPLACED)
         withContext(ioDispatcher) {
-            try {
-                val contentUri = FileProvider.getUriForFile(
-                    context,
-                    "${context.packageName}.fileprovider",
-                    apkFile
-                )
-                val installIntent = Intent(Intent.ACTION_VIEW).apply {
-                    setDataAndType(contentUri, "application/vnd.android.package-archive")
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            installViaPackageInstallerSession(apkFile)
+        }
+    }
+
+    private fun installViaPackageInstallerSession(apkFile: File) {
+        try {
+            val packageInstaller = context.packageManager.packageInstaller
+            val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
+                setAppPackageName(context.packageName)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    // Android 12+: allows self-install without prompting user
+                    setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
                 }
-                context.startActivity(installIntent)
-            } catch (e: Exception) {
-                Timber.e(e, "Error launching PackageInstaller intent")
             }
+
+            val sessionId = packageInstaller.createSession(params)
+            val session = packageInstaller.openSession(sessionId)
+
+            session.openWrite("package", 0, apkFile.length()).use { out ->
+                apkFile.inputStream().use { input ->
+                    input.copyTo(out)
+                }
+                session.fsync(out)
+            }
+
+            val intent = Intent(context, InstallStatusReceiver::class.java).apply {
+                action = InstallStatusReceiver.ACTION_INSTALL_STATUS
+            }
+            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+            } else {
+                PendingIntent.FLAG_UPDATE_CURRENT
+            }
+            val pendingIntent = PendingIntent.getBroadcast(context, sessionId, intent, flags)
+
+            session.commit(pendingIntent.intentSender)
+            session.close()
+            Timber.i("PackageInstaller session $sessionId committed successfully.")
+        } catch (e: Exception) {
+            Timber.e(e, "PackageInstaller session failed. Falling back to PackageInstaller Intent.")
+            fallbackToPackageInstallerIntent(apkFile)
+        }
+    }
+
+    private fun fallbackToPackageInstallerIntent(apkFile: File) {
+        try {
+            val contentUri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                apkFile
+            )
+            val installIntent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(contentUri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(installIntent)
+        } catch (e: Exception) {
+            Timber.e(e, "Error launching fallback PackageInstaller intent")
         }
     }
 

@@ -100,6 +100,8 @@ fun UpdateDialog(
                                 is UpdateStatus.Checking -> "Checking for Updates..."
                                 is UpdateStatus.UpdateAvailable -> "New Update Available!"
                                 is UpdateStatus.Downloading -> "Downloading Update..."
+                                is UpdateStatus.VerifyingSecurity -> "Verifying Update..."
+                                is UpdateStatus.Installing -> "Installing Update..."
                                 is UpdateStatus.ReadyToInstall -> "Installing Update..."
                                 is UpdateStatus.UpToDate -> "You're Up to Date"
                                 is UpdateStatus.Error -> "Update Check Failed"
@@ -253,6 +255,50 @@ fun UpdateDialog(
                                 fontFamily = FontFamily.Monospace
                             )
                         }
+                    }
+                }
+
+                is UpdateStatus.VerifyingSecurity -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(32.dp),
+                            color = Color(0xFF38BDF8),
+                            strokeWidth = 3.dp
+                        )
+                        Text(
+                            text = "Verifying package identity & security signatures...",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = textPrimary
+                        )
+                    }
+                }
+
+                is UpdateStatus.Installing -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(32.dp),
+                            color = accentColor,
+                            strokeWidth = 3.dp
+                        )
+                        Text(
+                            text = status.message,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = textPrimary
+                        )
                     }
                 }
 

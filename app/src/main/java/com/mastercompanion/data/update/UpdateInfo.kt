@@ -32,6 +32,8 @@ sealed class UpdateStatus {
         val apkSize: Long
     ) : UpdateStatus()
     data class Downloading(val progressPercent: Int) : UpdateStatus()
+    object VerifyingSecurity : UpdateStatus()
+    data class Installing(val message: String = "Installing update...") : UpdateStatus()
     data class ReadyToInstall(val apkPath: String) : UpdateStatus()
     data class Error(val message: String) : UpdateStatus()
 }

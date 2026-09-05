@@ -21,11 +21,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Fullscreen
@@ -34,6 +40,7 @@ import androidx.compose.material.icons.filled.Power
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Thermostat
+import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -129,6 +136,7 @@ fun HomePage(
     }
 
     var isFullscreenClock by remember { mutableStateOf(false) }
+    var showSideWidgets by remember { mutableStateOf(false) }
     var lastInteractionTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
     // 5-second inactivity timer to automatically go fullscreen clock
@@ -319,60 +327,109 @@ fun HomePage(
                         Spacer(modifier = Modifier.height(24.dp))
                     }
                 } else {
-                    // ═══ LANDSCAPE 2-COLUMN DASHBOARD VIEW ═══
+                    // ═══ LANDSCAPE FULL-SIZE CLOCK + POP-IN WIDGETS VIEW ═══
                     Row(
                         modifier = Modifier.fillMaxSize(),
-                        horizontalArrangement = Arrangement.spacedBy(36.dp),
+                        horizontalArrangement = Arrangement.spacedBy(24.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Left Column: Clock + Style Switcher + Quick Actions
+                        // Main Left/Center Column: Expansive Hero Clock + Controls
                         Column(
                             modifier = Modifier
-                                .weight(1.15f)
+                                .weight(1f)
                                 .fillMaxHeight(),
-                            verticalArrangement = Arrangement.Center,
-                            horizontalAlignment = Alignment.Start
+                            verticalArrangement = Arrangement.SpaceBetween,
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
+                            // Top Bar: Clock Style Switcher on Left, Widgets Pop-in Button on Right
                             Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(20.dp))
-                                    .background(if (whiteTheme) Color(0xFFEDF2F7) else Color(0xFF161822))
-                                    .border(1.dp, cardBorder, RoundedCornerShape(20.dp))
-                                    .clickable {
-                                        styleIndex = (styleIndex + 1) % styles.size
-                                        onClockStyleChanged(styleIndex)
-                                    }
-                                    .padding(horizontal = 12.dp, vertical = 5.dp)
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Style,
-                                    contentDescription = "Change Clock Style",
-                                    tint = Color(0xFF38BDF8),
-                                    modifier = Modifier.size(13.dp)
-                                )
-                                Text(
-                                    text = "STYLE: ${currentStyle.displayName.uppercase()}",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = 1.sp,
-                                    color = Color(0xFF38BDF8)
+                                // Style Switcher Pill
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .background(if (whiteTheme) Color(0xFFEDF2F7) else Color(0xFF161822))
+                                        .border(1.dp, cardBorder, RoundedCornerShape(20.dp))
+                                        .clickable {
+                                            styleIndex = (styleIndex + 1) % styles.size
+                                            onClockStyleChanged(styleIndex)
+                                        }
+                                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Style,
+                                        contentDescription = "Change Clock Style",
+                                        tint = Color(0xFF38BDF8),
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = "STYLE: ${currentStyle.displayName.uppercase()}",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 1.sp,
+                                        color = Color(0xFF38BDF8)
+                                    )
+                                }
+
+                                // Pop-in Widgets & Telemetry Button
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .background(
+                                            if (showSideWidgets) Color(0xFF38BDF8).copy(alpha = 0.2f)
+                                            else if (whiteTheme) Color(0xFFEDF2F7) else Color(0xFF161822)
+                                        )
+                                        .border(
+                                            1.dp,
+                                            if (showSideWidgets) Color(0xFF38BDF8) else cardBorder,
+                                            RoundedCornerShape(20.dp)
+                                        )
+                                        .clickable {
+                                            lastInteractionTime = System.currentTimeMillis()
+                                            showSideWidgets = !showSideWidgets
+                                        }
+                                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (showSideWidgets) Icons.Filled.ChevronRight else Icons.Filled.Widgets,
+                                        contentDescription = "Toggle Dashboard Widgets",
+                                        tint = if (showSideWidgets) Color(0xFF38BDF8) else textSubColor,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Text(
+                                        text = if (showSideWidgets) "HIDE WIDGETS" else "WIDGETS • ${batteryData.level}% • ${batteryData.formattedPower}",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 0.8.sp,
+                                        color = if (showSideWidgets) Color(0xFF38BDF8) else textColor
+                                    )
+                                }
+                            }
+
+                            // Center Area: Hero Standby Clock (Full Size & Majestic!)
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                ClockStyleHost(
+                                    style = currentStyle,
+                                    currentTime = currentTime,
+                                    batteryData = batteryData,
+                                    whiteTheme = whiteTheme,
+                                    use24Hour = use24Hour
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            ClockStyleHost(
-                                style = currentStyle,
-                                currentTime = currentTime,
-                                batteryData = batteryData,
-                                whiteTheme = whiteTheme,
-                                use24Hour = use24Hour
-                            )
-
-                            Spacer(modifier = Modifier.height(10.dp))
-
+                            // Bottom Area: Quick Actions Row (Spacious and Uncrowded)
                             QuickActionsRow(
                                 pcMac = pcMac,
                                 calendarEnabled = calendarEnabled,
@@ -399,45 +456,92 @@ fun HomePage(
                             )
                         }
 
-                        // Right Column: Calendar Widget + Battery Telemetry Card
-                        Column(
-                            modifier = Modifier
-                                .weight(0.95f)
-                                .fillMaxHeight()
-                                .verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                        // Right Column: Pop-in Minimalist Sliding Widgets Drawer
+                        AnimatedVisibility(
+                            visible = showSideWidgets,
+                            enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(),
+                            exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut()
                         ) {
-                            GoogleCalendarWidget(
-                                calendarEnabled = calendarEnabled,
-                                currentTime = currentTime,
-                                hasCalendarPermission = hasCalendarPermission,
-                                syncedAccount = syncedAccount,
-                                upcomingEvents = upcomingEvents,
-                                latestReminder = latestReminder,
-                                use24Hour = use24Hour,
-                                whiteTheme = whiteTheme,
-                                cardBg = cardBg,
-                                cardBorder = cardBorder,
-                                textColor = textColor,
-                                textSubColor = textSubColor,
-                                onTriggerCalendarSync = onTriggerCalendarSync,
-                                onToggleCalendar = onToggleCalendar,
-                                onRequestCalendarPermission = onRequestCalendarPermission,
-                                onOpenCalendar = onOpenCalendar
-                            )
+                            Column(
+                                modifier = Modifier
+                                    .width(380.dp)
+                                    .fillMaxHeight()
+                                    .clip(RoundedCornerShape(24.dp))
+                                    .background(if (whiteTheme) Color(0xFFF1F5F9) else Color(0xFF13151D))
+                                    .border(1.dp, cardBorder, RoundedCornerShape(24.dp))
+                                    .padding(14.dp)
+                                    .verticalScroll(rememberScrollState()),
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                // Drawer Header with Close Button
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Widgets,
+                                            contentDescription = null,
+                                            tint = Color(0xFF38BDF8),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text(
+                                            text = "WIDGETS & TELEMETRY",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            letterSpacing = 1.sp,
+                                            color = textColor
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = { showSideWidgets = false },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Close,
+                                            contentDescription = "Close Widgets",
+                                            tint = textSubColor,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
 
-                            BatteryTelemetryCard(
-                                batteryData = batteryData,
-                                whiteTheme = whiteTheme,
-                                cardBg = cardBg,
-                                cardBorder = cardBorder,
-                                textColor = textColor,
-                                textSubColor = textSubColor,
-                                onToggleChargeLimit = onToggleChargeLimit
-                            )
+                                GoogleCalendarWidget(
+                                    calendarEnabled = calendarEnabled,
+                                    currentTime = currentTime,
+                                    hasCalendarPermission = hasCalendarPermission,
+                                    syncedAccount = syncedAccount,
+                                    upcomingEvents = upcomingEvents,
+                                    latestReminder = latestReminder,
+                                    use24Hour = use24Hour,
+                                    whiteTheme = whiteTheme,
+                                    cardBg = cardBg,
+                                    cardBorder = cardBorder,
+                                    textColor = textColor,
+                                    textSubColor = textSubColor,
+                                    onTriggerCalendarSync = onTriggerCalendarSync,
+                                    onToggleCalendar = onToggleCalendar,
+                                    onRequestCalendarPermission = onRequestCalendarPermission,
+                                    onOpenCalendar = onOpenCalendar
+                                )
 
-                            Spacer(modifier = Modifier.height(48.dp))
+                                BatteryTelemetryCard(
+                                    batteryData = batteryData,
+                                    whiteTheme = whiteTheme,
+                                    cardBg = cardBg,
+                                    cardBorder = cardBorder,
+                                    textColor = textColor,
+                                    textSubColor = textSubColor,
+                                    onToggleChargeLimit = onToggleChargeLimit
+                                )
+
+                                Spacer(modifier = Modifier.height(24.dp))
+                            }
                         }
                     }
                 }
