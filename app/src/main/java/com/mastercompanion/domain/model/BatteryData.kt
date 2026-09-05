@@ -21,13 +21,13 @@ data class BatteryData(
     val status: ChargingStatus = ChargingStatus.UNKNOWN,
     val isChargeLimitActive: Boolean = false,
     val isRootControlled: Boolean = false,
+    val level: Int = percentage,
+    val isBypassed: Boolean = isChargeLimitActive,
+    val voltageMv: Int = (voltageVolts * 1000).toInt(),
+    val currentMa: Int = (currentAmperes * 1000).toInt(),
+    val temperatureC: Float = temperatureCelsius,
     val timestamp: Long = System.currentTimeMillis()
 ) {
-    val level: Int get() = percentage
     val isCharging: Boolean get() = status == ChargingStatus.CHARGING
-    val isBypassed: Boolean get() = isChargeLimitActive
-    val voltageMv: Int get() = (voltageVolts * 1000).toInt()
-    val currentMa: Int get() = (currentAmperes * 1000).toInt()
-    val temperatureC: Float get() = temperatureCelsius
 }
 

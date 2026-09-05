@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -39,7 +40,8 @@ class DashboardViewModel @Inject constructor(
     private val rootShell: RootShell,
     private val lyricsRepository: com.mastercompanion.data.lyrics.LyricsRepository,
     private val commandBridgeServer: com.mastercompanion.server.CommandBridgeServer,
-    private val calendarRepository: com.mastercompanion.data.calendar.CalendarRepository
+    private val calendarRepository: com.mastercompanion.data.calendar.CalendarRepository,
+    private val updateRepository: com.mastercompanion.data.update.UpdateRepository
 ) : ViewModel() {
 
     // ═══ State Flows ═══
@@ -82,6 +84,13 @@ class DashboardViewModel @Inject constructor(
                     lastLyricsKey = null
                     _currentLyrics.value = null
                 }
+            }
+        }
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(3500)
+            val shouldCheck = preferencesRepository.autoCheckUpdatesFlow.first()
+            if (shouldCheck) {
+                updateRepository.checkForUpdate()
             }
         }
     }
@@ -136,6 +145,15 @@ class DashboardViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     val autoFullscreenClockEnabled: StateFlow<Boolean> = preferencesRepository.autoFullscreenClockFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val wolBroadcastIp: StateFlow<String> = preferencesRepository.wolBroadcastIpFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "192.168.1.255")
+
+    val lyricsLayout: StateFlow<Int> = preferencesRepository.lyricsLayoutFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val autoCheckUpdates: StateFlow<Boolean> = preferencesRepository.autoCheckUpdatesFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     val upcomingEvents: StateFlow<List<com.mastercompanion.domain.model.CalendarEvent>> = calendarRepository.events
@@ -305,19 +323,37 @@ class DashboardViewModel @Inject constructor(
     }
 
     // ═══ Bridge Actions ═══
-    fun sendWol(mac: String? = null, ip: String? = null) {
+    fun sendWol(mac: String? = null, broadcastIp: String? = null) {
         viewModelScope.launch {
             val targetMac = mac?.takeIf { it.isNotBlank() } ?: pcMac.value
-            val targetIp = ip?.takeIf { it.isNotBlank() } ?: pcIp.value
+            val targetBroadcast = broadcastIp?.takeIf { it.isNotBlank() } ?: wolBroadcastIp.value
             commandExecutor.execute(
                 CommandRequest(
                     action = "wol",
                     params = buildMap {
                         if (targetMac.isNotBlank()) put("mac", targetMac)
-                        if (targetIp.isNotBlank()) put("ip", targetIp)
+                        if (targetBroadcast.isNotBlank()) put("broadcast", targetBroadcast)
                     }
                 )
             )
+        }
+    }
+
+    fun updateWolBroadcastIp(broadcastIp: String) {
+        viewModelScope.launch {
+            preferencesRepository.setWolBroadcastIp(broadcastIp)
+        }
+    }
+
+    fun setLyricsLayout(layoutIndex: Int) {
+        viewModelScope.launch {
+            preferencesRepository.setLyricsLayout(layoutIndex)
+        }
+    }
+
+    fun setAutoCheckUpdates(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesRepository.setAutoCheckUpdates(enabled)
         }
     }
 
@@ -349,5 +385,23 @@ class DashboardViewModel @Inject constructor(
         viewModelScope.launch {
             preferencesRepository.setSpotifyClientId(clientId)
         }
+    }
+
+    val updateStatus: StateFlow<com.mastercompanion.data.update.UpdateStatus> = updateRepository.updateStatus
+
+    fun checkForUpdate() {
+        viewModelScope.launch {
+            updateRepository.checkForUpdate()
+        }
+    }
+
+    fun downloadAndInstallUpdate(url: String) {
+        viewModelScope.launch {
+            updateRepository.downloadAndInstall(url)
+        }
+    }
+
+    fun dismissUpdate() {
+        updateRepository.dismissUpdate()
     }
 }

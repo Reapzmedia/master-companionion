@@ -79,7 +79,10 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.foundation.layout.PaddingValues
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import com.mastercompanion.domain.model.CalendarEvent
 
 @Composable
@@ -87,6 +90,7 @@ fun HomePage(
     batteryData: BatteryData,
     pcMac: String = "",
     pcIp: String = "192.168.1.100",
+    wolBroadcastIp: String = "192.168.1.255",
     whiteTheme: Boolean = false,
     pixelShiftEnabled: Boolean = true,
     use24Hour: Boolean = true,
@@ -98,8 +102,9 @@ fun HomePage(
     hasCalendarPermission: Boolean = true,
     syncedAccount: String? = null,
     onToggleChargeLimit: () -> Unit = {},
-    onSendWol: (mac: String, ip: String) -> Unit = { _, _ -> },
+    onSendWol: (mac: String, ip: String, broadcastIp: String) -> Unit = { _, _, _ -> },
     onSavePcNetwork: (ip: String, mac: String) -> Unit = { _, _ -> },
+    onSaveWolBroadcast: (String) -> Unit = {},
     onClockStyleChanged: (Int) -> Unit = {},
     onToggleCalendar: (Boolean) -> Unit = {},
     onFullscreenChanged: (Boolean) -> Unit = {},
@@ -109,6 +114,8 @@ fun HomePage(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
 
     // Current time update ticker
     var currentTime by remember { mutableStateOf(System.currentTimeMillis()) }
@@ -145,6 +152,7 @@ fun HomePage(
     var showWolDialog by remember { mutableStateOf(false) }
     var inputMac by remember(pcMac) { mutableStateOf(if (pcMac == "00:00:00:00:00:00") "" else pcMac) }
     var inputIp by remember(pcIp) { mutableStateOf(pcIp) }
+    var inputBroadcastIp by remember(wolBroadcastIp) { mutableStateOf(wolBroadcastIp) }
 
     val bgColor = if (whiteTheme) Color(0xFFF8F9FA) else Color(0xFF0A0A0C)
     val cardBg = if (whiteTheme) Color(0xFFFFFFFF) else Color(0xFF12141A)
@@ -232,564 +240,236 @@ fun HomePage(
                             )
                         }
                     }
+                } else if (isPortrait) {
+                    // ═══ VERTICAL PORTRAIT STANDBY HOME VIEW ═══
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Clock Style Switcher Pill
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(if (whiteTheme) Color(0xFFEDF2F7) else Color(0xFF161822))
+                                .border(1.dp, cardBorder, RoundedCornerShape(20.dp))
+                                .clickable {
+                                    styleIndex = (styleIndex + 1) % styles.size
+                                    onClockStyleChanged(styleIndex)
+                                }
+                                .padding(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Style,
+                                contentDescription = "Change Clock Style",
+                                tint = Color(0xFF38BDF8),
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = "STYLE: ${currentStyle.displayName.uppercase()}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp,
+                                color = Color(0xFF38BDF8)
+                            )
+                        }
+
+                        // Hero Clock Composable
+                        ClockStyleHost(
+                            style = currentStyle,
+                            currentTime = currentTime,
+                            batteryData = batteryData,
+                            whiteTheme = whiteTheme,
+                            use24Hour = use24Hour
+                        )
+
+                        // Quick Actions Row
+                        QuickActionsRow(
+                            pcMac = pcMac,
+                            calendarEnabled = calendarEnabled,
+                            isFullscreenClock = isFullscreenClock,
+                            whiteTheme = whiteTheme,
+                            cardBorder = cardBorder,
+                            textColor = textColor,
+                            textSubColor = textSubColor,
+                            onWakePc = {
+                                if (pcMac.isBlank() || pcMac == "00:00:00:00:00:00") {
+                                    showWolDialog = true
+                                } else {
+                                    Toast.makeText(context, "Broadcasting WoL packet to $pcMac...", Toast.LENGTH_SHORT).show()
+                                    onSendWol(pcMac, pcIp, wolBroadcastIp)
+                                }
+                            },
+                            onEditPc = { showWolDialog = true },
+                            onToggleCalendar = onToggleCalendar,
+                            onToggleFullscreen = {
+                                lastInteractionTime = System.currentTimeMillis()
+                                isFullscreenClock = !isFullscreenClock
+                                onFullscreenChanged(isFullscreenClock)
+                            }
+                        )
+
+                        // Google Calendar Agenda Widget
+                        GoogleCalendarWidget(
+                            calendarEnabled = calendarEnabled,
+                            currentTime = currentTime,
+                            hasCalendarPermission = hasCalendarPermission,
+                            syncedAccount = syncedAccount,
+                            upcomingEvents = upcomingEvents,
+                            latestReminder = latestReminder,
+                            use24Hour = use24Hour,
+                            whiteTheme = whiteTheme,
+                            cardBg = cardBg,
+                            cardBorder = cardBorder,
+                            textColor = textColor,
+                            textSubColor = textSubColor,
+                            onTriggerCalendarSync = onTriggerCalendarSync,
+                            onToggleCalendar = onToggleCalendar,
+                            onRequestCalendarPermission = onRequestCalendarPermission,
+                            onOpenCalendar = onOpenCalendar
+                        )
+
+                        // Battery Guard & Rotary Knob Card
+                        BatteryTelemetryCard(
+                            batteryData = batteryData,
+                            whiteTheme = whiteTheme,
+                            cardBg = cardBg,
+                            cardBorder = cardBorder,
+                            textColor = textColor,
+                            textSubColor = textSubColor,
+                            onToggleChargeLimit = onToggleChargeLimit
+                        )
+
+                        Spacer(modifier = Modifier.height(24.dp))
+                    }
                 } else {
+                    // ═══ LANDSCAPE 2-COLUMN DASHBOARD VIEW ═══
                     Row(
                         modifier = Modifier.fillMaxSize(),
                         horizontalArrangement = Arrangement.spacedBy(36.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                // ═══ LEFT COLUMN: 5-Style Standby Clock Suite ═══
-                Column(
-                    modifier = Modifier
-                        .weight(1.15f)
-                        .fillMaxHeight(),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.Start
-                ) {
-                    // Clock Style Switcher Pill
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(if (whiteTheme) Color(0xFFEDF2F7) else Color(0xFF161822))
-                            .border(1.dp, cardBorder, RoundedCornerShape(20.dp))
-                            .clickable {
-                                styleIndex = (styleIndex + 1) % styles.size
-                                onClockStyleChanged(styleIndex)
-                            }
-                            .padding(horizontal = 12.dp, vertical = 5.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Style,
-                            contentDescription = "Change Clock Style",
-                            tint = Color(0xFF38BDF8),
-                            modifier = Modifier.size(13.dp)
-                        )
-                        Text(
-                            text = "STYLE: ${currentStyle.displayName.uppercase()}",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp,
-                            color = Color(0xFF38BDF8)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Clock Face Composable
-                    ClockStyleHost(
-                        style = currentStyle,
-                        currentTime = currentTime,
-                        batteryData = batteryData,
-                        whiteTheme = whiteTheme,
-                        use24Hour = use24Hour
-                    )
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    // Quick Action: Wake-on-LAN Button + Edit Target PC
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        // Left Column: Clock + Style Switcher + Quick Actions
+                        Column(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(if (whiteTheme) Color(0xFFE2E8F0) else Color(0xFF1E212B))
-                                .border(1.dp, cardBorder, RoundedCornerShape(12.dp))
-                                .clickable {
+                                .weight(1.15f)
+                                .fillMaxHeight(),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.Start
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(if (whiteTheme) Color(0xFFEDF2F7) else Color(0xFF161822))
+                                    .border(1.dp, cardBorder, RoundedCornerShape(20.dp))
+                                    .clickable {
+                                        styleIndex = (styleIndex + 1) % styles.size
+                                        onClockStyleChanged(styleIndex)
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 5.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Style,
+                                    contentDescription = "Change Clock Style",
+                                    tint = Color(0xFF38BDF8),
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Text(
+                                    text = "STYLE: ${currentStyle.displayName.uppercase()}",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.sp,
+                                    color = Color(0xFF38BDF8)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            ClockStyleHost(
+                                style = currentStyle,
+                                currentTime = currentTime,
+                                batteryData = batteryData,
+                                whiteTheme = whiteTheme,
+                                use24Hour = use24Hour
+                            )
+
+                            Spacer(modifier = Modifier.height(24.dp))
+
+                            QuickActionsRow(
+                                pcMac = pcMac,
+                                calendarEnabled = calendarEnabled,
+                                isFullscreenClock = isFullscreenClock,
+                                whiteTheme = whiteTheme,
+                                cardBorder = cardBorder,
+                                textColor = textColor,
+                                textSubColor = textSubColor,
+                                onWakePc = {
                                     if (pcMac.isBlank() || pcMac == "00:00:00:00:00:00") {
                                         showWolDialog = true
                                     } else {
                                         Toast.makeText(context, "Broadcasting WoL packet to $pcMac...", Toast.LENGTH_SHORT).show()
-                                        onSendWol(pcMac, pcIp)
+                                        onSendWol(pcMac, pcIp, wolBroadcastIp)
                                     }
-                                }
-                                .padding(horizontal = 16.dp, vertical = 10.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Computer,
-                                contentDescription = "Wake PC",
-                                tint = Color(0xFF38BDF8),
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Text(
-                                text = if (pcMac.isNotBlank() && pcMac != "00:00:00:00:00:00") "Wake PC ($pcMac)" else "Set & Wake PC",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = textColor,
-                                fontFamily = if (pcMac.isNotBlank() && pcMac != "00:00:00:00:00:00") FontFamily.Monospace else FontFamily.Default
-                            )
-                        }
-
-                        // Edit target PC icon
-                        IconButton(
-                            onClick = { showWolDialog = true },
-                            modifier = Modifier
-                                .size(38.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (whiteTheme) Color(0xFFEDF2F7) else Color(0xFF161820))
-                                .border(1.dp, cardBorder, RoundedCornerShape(10.dp))
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Edit,
-                                contentDescription = "Edit PC Network Details",
-                                tint = textSubColor,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-
-                        // Quick Action: Toggle Calendar on Home Page
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(if (calendarEnabled) (if (whiteTheme) Color(0xFFE0F2FE) else Color(0xFF0C2A40)) else (if (whiteTheme) Color(0xFFEDF2F7) else Color(0xFF1E212B)))
-                                .border(1.dp, if (calendarEnabled) Color(0xFF38BDF8).copy(alpha = 0.5f) else cardBorder, RoundedCornerShape(12.dp))
-                                .clickable { onToggleCalendar(!calendarEnabled) }
-                                .padding(horizontal = 14.dp, vertical = 10.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.CalendarToday,
-                                contentDescription = "Toggle Calendar",
-                                tint = if (calendarEnabled) Color(0xFF38BDF8) else textSubColor,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Text(
-                                text = if (calendarEnabled) "Calendar: ON" else "Calendar: OFF",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (calendarEnabled) (if (whiteTheme) Color(0xFF0369A1) else Color(0xFF38BDF8)) else textSubColor
-                            )
-                        }
-
-                        // Quick Action: Toggle Fullscreen Clock Only
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(if (isFullscreenClock) (if (whiteTheme) Color(0xFFE0F2FE) else Color(0xFF0C2A40)) else (if (whiteTheme) Color(0xFFEDF2F7) else Color(0xFF1E212B)))
-                                .border(1.dp, if (isFullscreenClock) Color(0xFF38BDF8).copy(alpha = 0.5f) else cardBorder, RoundedCornerShape(12.dp))
-                                .clickable {
+                                },
+                                onEditPc = { showWolDialog = true },
+                                onToggleCalendar = onToggleCalendar,
+                                onToggleFullscreen = {
                                     lastInteractionTime = System.currentTimeMillis()
                                     isFullscreenClock = !isFullscreenClock
                                     onFullscreenChanged(isFullscreenClock)
                                 }
-                                .padding(horizontal = 14.dp, vertical = 10.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (isFullscreenClock) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen,
-                                contentDescription = "Toggle Fullscreen Clock",
-                                tint = if (isFullscreenClock) Color(0xFF38BDF8) else textSubColor,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Text(
-                                text = if (isFullscreenClock) "Clock: Fullscreen" else "Clock: Normal",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (isFullscreenClock) (if (whiteTheme) Color(0xFF0369A1) else Color(0xFF38BDF8)) else textSubColor
                             )
                         }
-                    }
-                }
 
-                // ═══ RIGHT COLUMN: Google Calendar Agenda & Battery Telemetry ═══
-                Column(
-                    modifier = Modifier
-                        .weight(0.95f)
-                        .fillMaxHeight(),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    // 1. Google Calendar Minimalist Widget (Android Style)
-                    if (calendarEnabled) {
-                        val dateString = remember(currentTime) {
-                            SimpleDateFormat("EEE, MMM d", Locale.getDefault()).format(Date(currentTime)).uppercase()
-                        }
-
-                        Box(
+                        // Right Column: Calendar Widget + Battery Telemetry Card
+                        Column(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(cardBg)
-                                .border(1.dp, cardBorder, RoundedCornerShape(20.dp))
-                                .padding(16.dp)
+                                .weight(0.95f)
+                                .fillMaxHeight(),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                // Minimalist Header: Date Pill + Synced Account + Quick Actions
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        // Date chip
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(8.dp))
-                                                .background(Color(0xFF4285F4).copy(alpha = 0.15f))
-                                                .padding(horizontal = 8.dp, vertical = 3.dp)
-                                        ) {
-                                            Text(
-                                                text = dateString,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF4285F4),
-                                                letterSpacing = 0.5.sp
-                                            )
-                                        }
-
-                                        // Account / Sync indicator
-                                        Text(
-                                            text = if (hasCalendarPermission) (syncedAccount ?: "Google Calendar") else "Not Connected",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = if (hasCalendarPermission) textSubColor else Color(0xFFF59E0B),
-                                            maxLines = 1
-                                        )
-                                    }
-
-                                    // Action icons: Sync & Dismiss (✕)
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(2.dp)
-                                    ) {
-                                        if (hasCalendarPermission) {
-                                            IconButton(
-                                                onClick = onTriggerCalendarSync,
-                                                modifier = Modifier.size(24.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Filled.Refresh,
-                                                    contentDescription = "Sync Calendar",
-                                                    tint = textSubColor,
-                                                    modifier = Modifier.size(15.dp)
-                                                )
-                                            }
-                                        }
-
-                                        // Close button: allows user to dismiss calendar widget directly
-                                        IconButton(
-                                            onClick = { onToggleCalendar(false) },
-                                            modifier = Modifier.size(24.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Filled.Close,
-                                                contentDescription = "Hide Calendar",
-                                                tint = textSubColor.copy(alpha = 0.7f),
-                                                modifier = Modifier.size(15.dp)
-                                            )
-                                        }
-                                    }
-                                }
-
-                                // Body: Real Schedule or Permission State
-                                if (!hasCalendarPermission) {
-                                    Column(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                                        horizontalAlignment = Alignment.Start
-                                    ) {
-                                        Text(
-                                            text = "Sync with Google Calendar to display your live agenda here.",
-                                            fontSize = 12.sp,
-                                            color = textSubColor
-                                        )
-                                        Button(
-                                            onClick = onRequestCalendarPermission,
-                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4285F4)),
-                                            shape = RoundedCornerShape(10.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Filled.CalendarToday,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(14.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Text(
-                                                text = "Connect Google Calendar",
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        }
-                                    }
-                                } else if (upcomingEvents.isEmpty()) {
-                                    // Clean empty state (ZERO fake placeholder text!)
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(if (whiteTheme) Color(0xFFF1F5F9) else Color(0xFF161822))
-                                            .padding(14.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                            Text(
-                                                text = "No upcoming events",
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = textColor
-                                            )
-                                            Text(
-                                                text = "Your schedule is clear",
-                                                fontSize = 11.sp,
-                                                color = textSubColor
-                                            )
-                                        }
-
-                                        TextButton(
-                                            onClick = onOpenCalendar,
-                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                                        ) {
-                                            Text(
-                                                text = "Open App ↗",
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF4285F4)
-                                            )
-                                        }
-                                    }
-                                } else {
-                                    // Android Google Calendar Glance Widget Style
-                                    val nextEvent = latestReminder ?: upcomingEvents.first()
-                                    val eventColor = if (nextEvent.color != 0) Color(nextEvent.color) else Color(0xFF4285F4)
-
-                                    // Next Event Card
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(if (whiteTheme) Color(0xFFF8FAFC) else Color(0xFF171A24))
-                                            .border(1.dp, eventColor.copy(alpha = 0.25f), RoundedCornerShape(12.dp))
-                                            .clickable { onOpenCalendar() }
-                                            .padding(12.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        // Vertical colored indicator bar (Android widget look)
-                                        Box(
-                                            modifier = Modifier
-                                                .width(4.dp)
-                                                .height(38.dp)
-                                                .clip(RoundedCornerShape(2.dp))
-                                                .background(eventColor)
-                                        )
-
-                                        Column(
-                                            modifier = Modifier.weight(1f),
-                                            verticalArrangement = Arrangement.spacedBy(2.dp)
-                                        ) {
-                                            Text(
-                                                text = nextEvent.title,
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = textColor,
-                                                maxLines = 1
-                                            )
-
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                            ) {
-                                                Text(
-                                                    text = nextEvent.formattedTimeRange(use24Hour),
-                                                    fontSize = 11.sp,
-                                                    color = textSubColor
-                                                )
-                                                if (nextEvent.location.isNotBlank()) {
-                                                    Text(
-                                                        text = "• ${nextEvent.location}",
-                                                        fontSize = 11.sp,
-                                                        color = textSubColor,
-                                                        maxLines = 1
-                                                    )
-                                                }
-                                            }
-                                        }
-
-                                        // Relative countdown pill
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(6.dp))
-                                                .background(eventColor.copy(alpha = 0.15f))
-                                                .padding(horizontal = 7.dp, vertical = 3.dp)
-                                        ) {
-                                            Text(
-                                                text = nextEvent.relativeTimeString(),
-                                                fontSize = 9.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = eventColor
-                                            )
-                                        }
-                                    }
-
-                                    // Next 1-2 upcoming items in compact minimalist list
-                                    val otherEvents = upcomingEvents.filter { it.id != nextEvent.id }.take(2)
-                                    if (otherEvents.isNotEmpty()) {
-                                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                            otherEvents.forEach { ev ->
-                                                val evColor = if (ev.color != 0) Color(ev.color) else Color(0xFF38BDF8)
-                                                Row(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .clip(RoundedCornerShape(8.dp))
-                                                        .background(if (whiteTheme) Color(0xFFF1F5F9) else Color(0xFF13151D))
-                                                        .clickable { onOpenCalendar() }
-                                                        .padding(horizontal = 10.dp, vertical = 7.dp),
-                                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Row(
-                                                        verticalAlignment = Alignment.CenterVertically,
-                                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                        modifier = Modifier.weight(1f)
-                                                    ) {
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .size(6.dp)
-                                                                .clip(CircleShape)
-                                                                .background(evColor)
-                                                        )
-                                                        Text(
-                                                            text = ev.title,
-                                                            fontSize = 12.sp,
-                                                            fontWeight = FontWeight.Medium,
-                                                            color = textColor,
-                                                            maxLines = 1
-                                                        )
-                                                    }
-
-                                                    Text(
-                                                        text = ev.formattedTimeRange(use24Hour),
-                                                        fontSize = 10.sp,
-                                                        color = textSubColor
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        // Subtle restore pill when calendar is toggled off
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(if (whiteTheme) Color(0xFFE2E8F0) else Color(0xFF161822))
-                                .clickable { onToggleCalendar(true) }
-                                .padding(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.CalendarToday,
-                                contentDescription = "Show Calendar",
-                                tint = Color(0xFF4285F4),
-                                modifier = Modifier.size(13.dp)
+                            GoogleCalendarWidget(
+                                calendarEnabled = calendarEnabled,
+                                currentTime = currentTime,
+                                hasCalendarPermission = hasCalendarPermission,
+                                syncedAccount = syncedAccount,
+                                upcomingEvents = upcomingEvents,
+                                latestReminder = latestReminder,
+                                use24Hour = use24Hour,
+                                whiteTheme = whiteTheme,
+                                cardBg = cardBg,
+                                cardBorder = cardBorder,
+                                textColor = textColor,
+                                textSubColor = textSubColor,
+                                onTriggerCalendarSync = onTriggerCalendarSync,
+                                onToggleCalendar = onToggleCalendar,
+                                onRequestCalendarPermission = onRequestCalendarPermission,
+                                onOpenCalendar = onOpenCalendar
                             )
-                            Text(
-                                text = "Show Google Calendar",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF4285F4)
+
+                            BatteryTelemetryCard(
+                                batteryData = batteryData,
+                                whiteTheme = whiteTheme,
+                                cardBg = cardBg,
+                                cardBorder = cardBorder,
+                                textColor = textColor,
+                                textSubColor = textSubColor,
+                                onToggleChargeLimit = onToggleChargeLimit
                             )
-                        }
-                    }
-
-                    // 2. Battery Guard & Telemetry Card
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(cardBg)
-                            .border(1.dp, cardBorder, RoundedCornerShape(20.dp))
-                            .padding(18.dp)
-                    ) {
-                        Column {
-                            // Header row with Level % and Bypass Toggle
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text(
-                                        text = "${batteryData.level}%",
-                                        fontSize = 28.sp,
-                                        fontWeight = FontWeight.Black,
-                                        color = when {
-                                            batteryData.isBypassed -> Color(0xFFF59E0B)
-                                            batteryData.level > 20 -> Color(0xFF10B981)
-                                            else -> Color(0xFFEF4444)
-                                        }
-                                    )
-                                    Text(
-                                        text = if (batteryData.isBypassed) "AC BYPASS" else if (batteryData.isCharging) "CHARGING" else "BATTERY",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        letterSpacing = 1.sp,
-                                        color = textSubColor
-                                    )
-                                }
-
-                                Switch(
-                                    checked = batteryData.isBypassed,
-                                    onCheckedChange = { onToggleChargeLimit() },
-                                    colors = SwitchDefaults.colors(
-                                        checkedThumbColor = Color.White,
-                                        checkedTrackColor = Color(0xFFF59E0B),
-                                        uncheckedThumbColor = Color.White.copy(alpha = 0.7f),
-                                        uncheckedTrackColor = Color(0xFF262933)
-                                    )
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(10.dp))
-
-                            // Telemetry Grid
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                TelemetryMetric(
-                                    label = "POWER",
-                                    value = String.format(Locale.US, "%.1f W", kotlin.math.abs(batteryData.wattage)),
-                                    icon = Icons.Filled.Bolt,
-                                    tint = Color(0xFFFACC15),
-                                    textColor = textColor
-                                )
-                                TelemetryMetric(
-                                    label = "VOLTAGE",
-                                    value = String.format(Locale.US, "%.2f V", batteryData.voltageVolts),
-                                    icon = Icons.Filled.Power,
-                                    tint = Color(0xFF60A5FA),
-                                    textColor = textColor
-                                )
-                                TelemetryMetric(
-                                    label = "TEMP",
-                                    value = String.format(Locale.US, "%.1f °C", batteryData.temperatureC),
-                                    icon = Icons.Filled.Thermostat,
-                                    tint = if (batteryData.temperatureC > 38f) Color(0xFFEF4444) else Color(0xFF34D399),
-                                    textColor = textColor
-                                )
-                            }
                         }
                     }
                 }
             }
         }
     }
-    }
+
     // ═══ Wake-on-LAN Configuration Dialog ═══
     if (showWolDialog) {
         AlertDialog(
@@ -805,7 +485,7 @@ fun HomePage(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Text(
-                        text = "Enter your PC's network card details to send Wake-on-LAN packets. (Run 'getmac' in PowerShell on Windows to find it).",
+                        text = "Enter your PC's network card MAC address and Subnet Broadcast IP to send Layer 2 Wake-on-LAN packets across your Wi-Fi router.",
                         fontSize = 12.sp,
                         color = textSubColor
                     )
@@ -827,7 +507,21 @@ fun HomePage(
                     OutlinedTextField(
                         value = inputIp,
                         onValueChange = { inputIp = it },
-                        label = { Text("Target IP / Broadcast (default: 255.255.255.255)") },
+                        label = { Text("Target IP (e.g. 192.168.1.100)") },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFF38BDF8),
+                            unfocusedBorderColor = cardBorder,
+                            focusedTextColor = textColor,
+                            unfocusedTextColor = textSubColor
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = inputBroadcastIp,
+                        onValueChange = { inputBroadcastIp = it },
+                        label = { Text("Subnet Broadcast (e.g. 192.168.1.255 or 192.168.1.254)") },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = Color(0xFF38BDF8),
@@ -843,10 +537,12 @@ fun HomePage(
                 TextButton(
                     onClick = {
                         val cleanMac = inputMac.trim()
-                        val cleanIp = inputIp.trim().ifBlank { "255.255.255.255" }
+                        val cleanIp = inputIp.trim().ifBlank { "192.168.1.100" }
+                        val cleanBroadcast = inputBroadcastIp.trim().ifBlank { "192.168.1.255" }
                         if (cleanMac.isNotBlank()) {
                             onSavePcNetwork(cleanIp, cleanMac)
-                            onSendWol(cleanMac, cleanIp)
+                            onSaveWolBroadcast(cleanBroadcast)
+                            onSendWol(cleanMac, cleanIp, cleanBroadcast)
                             Toast.makeText(context, "Saved & sent WoL packet to $cleanMac", Toast.LENGTH_SHORT).show()
                             showWolDialog = false
                         } else {
@@ -865,9 +561,526 @@ fun HomePage(
             containerColor = cardBg
         )
     }
+}
+
+/**
+ * Reusable Battery Telemetry & Chronograph Knob Card.
+ */
+@Composable
+private fun BatteryTelemetryCard(
+    batteryData: BatteryData,
+    whiteTheme: Boolean,
+    cardBg: Color,
+    cardBorder: Color,
+    textColor: Color,
+    textSubColor: Color,
+    onToggleChargeLimit: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(cardBg)
+            .border(1.dp, cardBorder, RoundedCornerShape(20.dp))
+            .padding(16.dp)
+    ) {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (batteryData.isBypassed) "AC POWER BYPASS" else if (batteryData.isCharging) "CHARGING" else "DISCHARGING",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp,
+                    color = textSubColor
+                )
+
+                Switch(
+                    checked = batteryData.isBypassed,
+                    onCheckedChange = { onToggleChargeLimit() },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = Color(0xFFF59E0B),
+                        uncheckedThumbColor = Color.White.copy(alpha = 0.7f),
+                        uncheckedTrackColor = Color(0xFF262933)
+                    )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Rotary Chronograph Charging Knob + Live Telemetry Grid
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                ChargingKnobGauge(
+                    batteryData = batteryData,
+                    whiteTheme = whiteTheme,
+                    size = 110.dp,
+                    onToggleChargeLimit = onToggleChargeLimit
+                )
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    TelemetryMetric(
+                        label = "LIVE POWER",
+                        value = String.format(Locale.US, "%.1f W", kotlin.math.abs(batteryData.wattage)),
+                        icon = Icons.Filled.Bolt,
+                        tint = Color(0xFFFACC15),
+                        textColor = textColor
+                    )
+                    TelemetryMetric(
+                        label = "VOLTAGE",
+                        value = String.format(Locale.US, "%.2f V", batteryData.voltageVolts),
+                        icon = Icons.Filled.Power,
+                        tint = Color(0xFF60A5FA),
+                        textColor = textColor
+                    )
+                    TelemetryMetric(
+                        label = "BATTERY TEMP",
+                        value = String.format(Locale.US, "%.1f °C", batteryData.temperatureC),
+                        icon = Icons.Filled.Thermostat,
+                        tint = if (batteryData.temperatureC > 38f) Color(0xFFEF4444) else Color(0xFF34D399),
+                        textColor = textColor
+                    )
+                }
+            }
+        }
     }
 }
 
+/**
+ * Reusable Quick Actions Row for Wake-on-LAN, Calendar, and Fullscreen toggle.
+ */
+@Composable
+private fun QuickActionsRow(
+    pcMac: String,
+    calendarEnabled: Boolean,
+    isFullscreenClock: Boolean,
+    whiteTheme: Boolean,
+    cardBorder: Color,
+    textColor: Color,
+    textSubColor: Color,
+    onWakePc: () -> Unit,
+    onEditPc: () -> Unit,
+    onToggleCalendar: (Boolean) -> Unit,
+    onToggleFullscreen: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = modifier
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier
+                .clip(RoundedCornerShape(12.dp))
+                .background(if (whiteTheme) Color(0xFFE2E8F0) else Color(0xFF1E212B))
+                .border(1.dp, cardBorder, RoundedCornerShape(12.dp))
+                .clickable { onWakePc() }
+                .padding(horizontal = 14.dp, vertical = 9.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Computer,
+                contentDescription = "Wake PC",
+                tint = Color(0xFF38BDF8),
+                modifier = Modifier.size(18.dp)
+            )
+            Text(
+                text = if (pcMac.isNotBlank() && pcMac != "00:00:00:00:00:00") "Wake PC ($pcMac)" else "Set & Wake PC",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = textColor,
+                fontFamily = if (pcMac.isNotBlank() && pcMac != "00:00:00:00:00:00") FontFamily.Monospace else FontFamily.Default
+            )
+        }
+
+        IconButton(
+            onClick = onEditPc,
+            modifier = Modifier
+                .size(36.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(if (whiteTheme) Color(0xFFEDF2F7) else Color(0xFF161820))
+                .border(1.dp, cardBorder, RoundedCornerShape(10.dp))
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Edit,
+                contentDescription = "Edit PC Network Details",
+                tint = textSubColor,
+                modifier = Modifier.size(15.dp)
+            )
+        }
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier
+                .clip(RoundedCornerShape(12.dp))
+                .background(if (calendarEnabled) (if (whiteTheme) Color(0xFFE0F2FE) else Color(0xFF0C2A40)) else (if (whiteTheme) Color(0xFFEDF2F7) else Color(0xFF1E212B)))
+                .border(1.dp, if (calendarEnabled) Color(0xFF38BDF8).copy(alpha = 0.5f) else cardBorder, RoundedCornerShape(12.dp))
+                .clickable { onToggleCalendar(!calendarEnabled) }
+                .padding(horizontal = 12.dp, vertical = 9.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.CalendarToday,
+                contentDescription = "Toggle Calendar",
+                tint = if (calendarEnabled) Color(0xFF38BDF8) else textSubColor,
+                modifier = Modifier.size(15.dp)
+            )
+            Text(
+                text = if (calendarEnabled) "Cal: ON" else "Cal: OFF",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = if (calendarEnabled) (if (whiteTheme) Color(0xFF0369A1) else Color(0xFF38BDF8)) else textSubColor
+            )
+        }
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier
+                .clip(RoundedCornerShape(12.dp))
+                .background(if (isFullscreenClock) (if (whiteTheme) Color(0xFFE0F2FE) else Color(0xFF0C2A40)) else (if (whiteTheme) Color(0xFFEDF2F7) else Color(0xFF1E212B)))
+                .border(1.dp, if (isFullscreenClock) Color(0xFF38BDF8).copy(alpha = 0.5f) else cardBorder, RoundedCornerShape(12.dp))
+                .clickable { onToggleFullscreen() }
+                .padding(horizontal = 12.dp, vertical = 9.dp)
+        ) {
+            Icon(
+                imageVector = if (isFullscreenClock) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen,
+                contentDescription = "Toggle Fullscreen Clock",
+                tint = if (isFullscreenClock) Color(0xFF38BDF8) else textSubColor,
+                modifier = Modifier.size(15.dp)
+            )
+            Text(
+                text = if (isFullscreenClock) "Full" else "Clock",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = if (isFullscreenClock) (if (whiteTheme) Color(0xFF0369A1) else Color(0xFF38BDF8)) else textSubColor
+            )
+        }
+    }
+}
+
+/**
+ * Reusable Google Calendar Widget.
+ */
+@Composable
+private fun GoogleCalendarWidget(
+    calendarEnabled: Boolean,
+    currentTime: Long,
+    hasCalendarPermission: Boolean,
+    syncedAccount: String?,
+    upcomingEvents: List<CalendarEvent>,
+    latestReminder: CalendarEvent?,
+    use24Hour: Boolean,
+    whiteTheme: Boolean,
+    cardBg: Color,
+    cardBorder: Color,
+    textColor: Color,
+    textSubColor: Color,
+    onTriggerCalendarSync: () -> Unit,
+    onToggleCalendar: (Boolean) -> Unit,
+    onRequestCalendarPermission: () -> Unit,
+    onOpenCalendar: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (calendarEnabled) {
+        val dateString = remember(currentTime) {
+            SimpleDateFormat("EEE, MMM d", Locale.getDefault()).format(Date(currentTime)).uppercase()
+        }
+
+        Box(
+            modifier = modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(cardBg)
+                .border(1.dp, cardBorder, RoundedCornerShape(20.dp))
+                .padding(16.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Minimalist Header: Date Pill + Synced Account + Quick Actions
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFF4285F4).copy(alpha = 0.15f))
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = dateString,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF4285F4),
+                                letterSpacing = 0.5.sp
+                            )
+                        }
+
+                        Text(
+                            text = if (hasCalendarPermission) (syncedAccount ?: "Google Calendar") else "Not Connected",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = if (hasCalendarPermission) textSubColor else Color(0xFFF59E0B),
+                            maxLines = 1
+                        )
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        if (hasCalendarPermission) {
+                            IconButton(
+                                onClick = onTriggerCalendarSync,
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Refresh,
+                                    contentDescription = "Sync Calendar",
+                                    tint = textSubColor,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                            }
+                        }
+
+                        IconButton(
+                            onClick = { onToggleCalendar(false) },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = "Hide Calendar",
+                                tint = textSubColor.copy(alpha = 0.7f),
+                                modifier = Modifier.size(15.dp)
+                            )
+                        }
+                    }
+                }
+
+                if (!hasCalendarPermission) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalAlignment = Alignment.Start
+                    ) {
+                        Text(
+                            text = "Sync with Google Calendar to display your live agenda here.",
+                            fontSize = 12.sp,
+                            color = textSubColor
+                        )
+                        Button(
+                            onClick = onRequestCalendarPermission,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4285F4)),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.CalendarToday,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Connect Google Calendar",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                } else if (upcomingEvents.isEmpty()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (whiteTheme) Color(0xFFF1F5F9) else Color(0xFF161822))
+                            .padding(14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                text = "No upcoming events",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = textColor
+                            )
+                            Text(
+                                text = "Your schedule is clear",
+                                fontSize = 11.sp,
+                                color = textSubColor
+                            )
+                        }
+
+                        TextButton(
+                            onClick = onOpenCalendar,
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "Open App ↗",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF4285F4)
+                            )
+                        }
+                    }
+                } else {
+                    val nextEvent = latestReminder ?: upcomingEvents.first()
+                    val eventColor = if (nextEvent.color != 0) Color(nextEvent.color) else Color(0xFF4285F4)
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (whiteTheme) Color(0xFFF8FAFC) else Color(0xFF171A24))
+                            .border(1.dp, eventColor.copy(alpha = 0.25f), RoundedCornerShape(12.dp))
+                            .clickable { onOpenCalendar() }
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(4.dp)
+                                .height(38.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(eventColor)
+                        )
+
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Text(
+                                text = nextEvent.title,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = textColor,
+                                maxLines = 1
+                            )
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = nextEvent.formattedTimeRange(use24Hour),
+                                    fontSize = 11.sp,
+                                    color = textSubColor
+                                )
+                                if (nextEvent.location.isNotBlank()) {
+                                    Text(
+                                        text = "• ${nextEvent.location}",
+                                        fontSize = 11.sp,
+                                        color = textSubColor,
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(eventColor.copy(alpha = 0.15f))
+                                .padding(horizontal = 7.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = nextEvent.relativeTimeString(),
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = eventColor
+                            )
+                        }
+                    }
+
+                    val otherEvents = upcomingEvents.filter { it.id != nextEvent.id }.take(2)
+                    if (otherEvents.isNotEmpty()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            otherEvents.forEach { ev ->
+                                val evColor = if (ev.color != 0) Color(ev.color) else Color(0xFF38BDF8)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (whiteTheme) Color(0xFFF1F5F9) else Color(0xFF13151D))
+                                    .clickable { onOpenCalendar() }
+                                    .padding(horizontal = 10.dp, vertical = 7.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(evColor)
+                                    )
+                                    Text(
+                                        text = ev.title,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = textColor,
+                                        maxLines = 1
+                                    )
+                                }
+
+                                Text(
+                                    text = ev.formattedTimeRange(use24Hour),
+                                    fontSize = 10.sp,
+                                    color = textSubColor
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+} else {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (whiteTheme) Color(0xFFE2E8F0) else Color(0xFF161822))
+            .clickable { onToggleCalendar(true) }
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Filled.CalendarToday,
+            contentDescription = "Show Calendar",
+            tint = Color(0xFF4285F4),
+            modifier = Modifier.size(13.dp)
+        )
+        Text(
+            text = "Show Google Calendar",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color(0xFF4285F4)
+        )
+    }
+}
+}
 
 @Composable
 private fun TelemetryMetric(

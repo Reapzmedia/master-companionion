@@ -51,6 +51,9 @@ class PreferencesRepository @Inject constructor(
         val KEY_CALENDAR_ENABLED = booleanPreferencesKey("calendar_enabled")
         val KEY_AUTO_LAUNCH_ON_CHARGING = booleanPreferencesKey("auto_launch_on_charging")
         val KEY_AUTO_FULLSCREEN_CLOCK = booleanPreferencesKey("auto_fullscreen_clock")
+        val KEY_WOL_BROADCAST_IP = stringPreferencesKey("wol_broadcast_ip")
+        val KEY_LYRICS_LAYOUT = intPreferencesKey("lyrics_layout")
+        val KEY_AUTO_CHECK_UPDATES = booleanPreferencesKey("auto_check_updates")
     }
 
     // ═══ Flows ═══
@@ -248,5 +251,29 @@ class PreferencesRepository @Inject constructor(
 
     suspend fun setAutoFullscreenClock(enabled: Boolean) {
         dataStore.edit { it[KEY_AUTO_FULLSCREEN_CLOCK] = enabled }
+    }
+
+    val wolBroadcastIpFlow: Flow<String> = dataStore.data.map { prefs ->
+        prefs[KEY_WOL_BROADCAST_IP] ?: "192.168.1.255"
+    }
+
+    val lyricsLayoutFlow: Flow<Int> = dataStore.data.map { prefs ->
+        prefs[KEY_LYRICS_LAYOUT] ?: 0
+    }
+
+    val autoCheckUpdatesFlow: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[KEY_AUTO_CHECK_UPDATES] ?: true
+    }
+
+    suspend fun setWolBroadcastIp(broadcastIp: String) {
+        dataStore.edit { it[KEY_WOL_BROADCAST_IP] = broadcastIp.trim() }
+    }
+
+    suspend fun setLyricsLayout(layoutIndex: Int) {
+        dataStore.edit { it[KEY_LYRICS_LAYOUT] = layoutIndex }
+    }
+
+    suspend fun setAutoCheckUpdates(enabled: Boolean) {
+        dataStore.edit { it[KEY_AUTO_CHECK_UPDATES] = enabled }
     }
 }

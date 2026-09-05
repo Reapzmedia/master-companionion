@@ -36,6 +36,10 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.content.res.Configuration
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.platform.LocalConfiguration
 import com.mastercompanion.data.command.CommandLogEntry
 import com.mastercompanion.platform.DeviceCompat
 import java.text.SimpleDateFormat
@@ -50,18 +54,122 @@ fun SystemPage(
     modifier: Modifier = Modifier
 ) {
     val timeFormat = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
+    val configuration = LocalConfiguration.current
+    val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
 
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(Color(0xFF0A0A0C))
-            .padding(horizontal = 40.dp, vertical = 28.dp)
+            .padding(horizontal = if (isPortrait) 20.dp else 40.dp, vertical = if (isPortrait) 20.dp else 28.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            horizontalArrangement = Arrangement.spacedBy(36.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        if (isPortrait) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                // Header badge
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0xFF16181D))
+                        .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
+                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF8B5CF6))
+                    )
+                    Text(
+                        text = "HARDWARE & HTTP BRIDGE",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp,
+                        color = Color.White.copy(alpha = 0.85f)
+                    )
+                }
+
+                Text(
+                    text = "System Diagnostics",
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+
+                // Diagnostic Info Card
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFF12141A))
+                        .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+                        .padding(18.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        DiagItem(
+                            label = "TARGET PROFILE",
+                            value = if (DeviceCompat.isPixelDevice()) "Google Pixel 7 Pro" else "Huawei P20 Lite / Generic"
+                        )
+                        DiagItem(
+                            label = "ROOT PRIVILEGES",
+                            value = if (isRooted) "SU AVAILABLE (Kernel Control Active)" else "STANDARD (Non-root fallback)",
+                            color = if (isRooted) Color(0xFF10B981) else Color(0xFFF59E0B)
+                        )
+                        DiagItem(
+                            label = "SYSFS CHARGE CONTROL",
+                            value = DeviceCompat.getChargingControlPath(),
+                            isMonospace = true
+                        )
+                        DiagItem(
+                            label = "COMMAND BRIDGE SERVER",
+                            value = "Ktor CIO HTTP Server (0.0.0.0:8420)",
+                            color = Color(0xFF38BDF8)
+                        )
+                    }
+                }
+
+                // Test Action Buttons
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    ActionButton(
+                        title = "Test Ping",
+                        onClick = { onTriggerTestCommand("ping") }
+                    )
+                    ActionButton(
+                        title = "Test WoL",
+                        onClick = { onTriggerTestCommand("wol") }
+                    )
+                }
+
+                // Live HTTP Command Bridge Logs (Height-constrained on portrait)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(320.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFF12141A))
+                        .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+                        .padding(16.dp)
+                ) {
+                    BridgeLogsView(commandLogs = commandLogs, timeFormat = timeFormat)
+                }
+                
+                Spacer(modifier = Modifier.height(20.dp))
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.spacedBy(36.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
             // ═══ LEFT COLUMN: Hardware & Root Diagnostics ═══
             Column(
                 modifier = Modifier
@@ -171,94 +279,104 @@ fun SystemPage(
                         .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
                         .padding(18.dp)
                 ) {
-                    Column {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "BRIDGE ACTIVITY LOG",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.sp,
-                                color = Color.White.copy(alpha = 0.5f)
-                            )
-                            Text(
-                                text = "${commandLogs.size} events",
-                                fontSize = 11.sp,
-                                color = Color.White.copy(alpha = 0.35f)
-                            )
-                        }
+                    BridgeLogsView(commandLogs = commandLogs, timeFormat = timeFormat)
+                }
+            }
+        }
+    }
+}
+}
 
-                        Spacer(modifier = Modifier.height(14.dp))
+@Composable
+private fun BridgeLogsView(
+    commandLogs: List<CommandLogEntry>,
+    timeFormat: SimpleDateFormat,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "BRIDGE ACTIVITY LOG",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp,
+                color = Color.White.copy(alpha = 0.5f)
+            )
+            Text(
+                text = "${commandLogs.size} events",
+                fontSize = 11.sp,
+                color = Color.White.copy(alpha = 0.35f)
+            )
+        }
 
-                        if (commandLogs.isEmpty()) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(vertical = 40.dp),
-                                contentAlignment = Alignment.Center
+        Spacer(modifier = Modifier.height(14.dp))
+
+        if (commandLogs.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(vertical = 40.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No bridge commands executed yet.\nCommands sent via :8420 will appear here.",
+                    fontSize = 12.sp,
+                    color = Color.White.copy(alpha = 0.35f),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
+        } else {
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(commandLogs) { entry ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFF181B22))
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "No bridge commands executed yet.\nCommands sent via :8420 will appear here.",
+                                    text = entry.action,
                                     fontSize = 12.sp,
-                                    color = Color.White.copy(alpha = 0.35f),
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = Color(0xFF38BDF8)
+                                )
+                                Text(
+                                    text = timeFormat.format(Date(entry.timestamp)),
+                                    fontSize = 10.sp,
+                                    color = Color.White.copy(alpha = 0.35f)
                                 )
                             }
-                        } else {
-                            LazyColumn(
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.fillMaxSize()
-                            ) {
-                                items(commandLogs) { entry ->
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .background(Color(0xFF181B22))
-                                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Row(
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Text(
-                                                    text = entry.action,
-                                                    fontSize = 12.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontFamily = FontFamily.Monospace,
-                                                    color = Color(0xFF38BDF8)
-                                                )
-                                                Text(
-                                                    text = timeFormat.format(Date(entry.timestamp)),
-                                                    fontSize = 10.sp,
-                                                    color = Color.White.copy(alpha = 0.35f)
-                                                )
-                                            }
-                                            Text(
-                                                text = entry.message,
-                                                fontSize = 11.sp,
-                                                color = Color.White.copy(alpha = 0.65f),
-                                                maxLines = 1
-                                            )
-                                        }
-
-                                        Text(
-                                            text = entry.status.uppercase(),
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = if (entry.status.equals("ok", ignoreCase = true)) Color(0xFF10B981) else Color(0xFFEF4444),
-                                            modifier = Modifier.padding(start = 8.dp)
-                                        )
-                                    }
-                                }
-                            }
+                            Text(
+                                text = entry.message,
+                                fontSize = 11.sp,
+                                color = Color.White.copy(alpha = 0.65f),
+                                maxLines = 1
+                            )
                         }
+
+                        Text(
+                            text = entry.status.uppercase(),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (entry.status.equals("ok", ignoreCase = true)) Color(0xFF10B981) else Color(0xFFEF4444),
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
                     }
                 }
             }

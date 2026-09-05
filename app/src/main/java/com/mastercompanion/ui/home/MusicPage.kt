@@ -41,6 +41,8 @@ import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.MusicNote
+import com.mastercompanion.ui.home.lyrics.LyricsLayoutMode
+import com.mastercompanion.ui.home.lyrics.LyricsLayoutSelectorDialog
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -130,6 +132,8 @@ fun MusicPage(
     whiteTheme: Boolean = false,
     spotifyVolume: Int? = null,
     activeDeviceName: String = "",
+    lyricsLayout: Int = 0,
+    onLyricsLayoutChanged: (Int) -> Unit = {},
     onSetSpotifyVolume: (Int) -> Unit = {},
     onPlayPauseToggle: () -> Unit = {},
     onSkipNext: () -> Unit = {},
@@ -381,6 +385,8 @@ fun MusicPage(
                     isShuffle = isShuffle,
                     repeatMode = repeatMode,
                     dynamicThemeColor = themeAccent,
+                    lyricsLayout = lyricsLayout,
+                    onLyricsLayoutChanged = onLyricsLayoutChanged,
                     onSeekToTimestamp = onSeek,
                     onCloseLyrics = { layoutMode = MusicPlayerLayout.STANDARD },
                     onPlayPauseToggle = onPlayPauseToggle,
@@ -1666,7 +1672,7 @@ private fun FullBleedArtworkView(
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// 5. SYNCHRONIZED LYRICS VIEW (Replicating Spotify Standby Lyrics)
+// 5. SYNCHRONIZED LYRICS VIEW (5 Bespoke Layout Faces)
 // ═══════════════════════════════════════════════════════════════════
 @Composable
 private fun LyricsModeView(
@@ -1680,6 +1686,8 @@ private fun LyricsModeView(
     isShuffle: Boolean = false,
     repeatMode: Int = 0,
     dynamicThemeColor: Color? = null,
+    lyricsLayout: Int = 0,
+    onLyricsLayoutChanged: (Int) -> Unit = {},
     onPlayPauseToggle: () -> Unit = {},
     onSkipNext: () -> Unit = {},
     onSkipPrevious: () -> Unit = {},
@@ -1692,361 +1700,307 @@ private fun LyricsModeView(
     val lyricsTextColor = if (whiteTheme) Color(0xFF111827) else Color.White
     val lyricsSubColor = if (whiteTheme) Color(0xFF4B5563) else Color.White.copy(alpha = 0.75f)
 
+    val currentMode = remember(lyricsLayout) { LyricsLayoutMode.fromIndex(lyricsLayout) }
+    var showLayoutSelector by remember { mutableStateOf(false) }
+
+    if (showLayoutSelector) {
+        LyricsLayoutSelectorDialog(
+            currentLayoutIndex = lyricsLayout,
+            onSelectLayout = {
+                onLyricsLayoutChanged(it)
+                showLayoutSelector = false
+            },
+            onDismiss = { showLayoutSelector = false },
+            whiteTheme = whiteTheme
+        )
+    }
+
     if (isLandscape) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 36.dp, vertical = 18.dp)
+                .padding(horizontal = 36.dp, vertical = 16.dp)
         ) {
-            // Top-Left Playlist Context Header
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onCloseLyrics() },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Menu,
-                    contentDescription = "Playlist",
-                    tint = lyricsTextColor,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-                Column {
-                    Text(
-                        text = "PLAYING FROM PLAYLIST",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.2.sp,
-                            fontSize = 10.sp
-                        ),
-                        color = lyricsSubColor
-                    )
-                    Text(
-                        text = track.playlistContext.ifBlank { "Liked Songs" },
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
-                        ),
-                        color = lyricsTextColor
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Main Two-Column Row: Left (Art + Info + Compact Controls), Right (Live Lyrics)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Left Column: Artwork, Metadata (Title, Artist, Album/Year), Compact Controls & Progress
-                BoxWithConstraints(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .weight(0.42f)
-                ) {
-                    val availableH = maxHeight
-                    val artSize = if (availableH < 280.dp) 85.dp else if (availableH < 340.dp) 100.dp else 115.dp
-                    val titleSize = if (availableH < 280.dp) 16.sp else 18.sp
-                    val artistSize = if (availableH < 280.dp) 13.sp else 14.sp
-                    val albumSize = if (availableH < 280.dp) 10.sp else 11.sp
-                    val vSpacing = if (availableH < 280.dp) 3.dp else 6.dp
-                    val ctrlBtnSize = if (availableH < 280.dp) 28.dp else 32.dp
-
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(end = 16.dp),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.Start
-                    ) {
-                        // Album Cover with rounded corners + Persistent Lyrics Toggle Button
-                        Box(
-                            modifier = Modifier.size(artSize)
-                        ) {
-                            val context = LocalContext.current
-                            AsyncImage(
-                                model = ImageRequest.Builder(context)
-                                    .data(track.albumArtUrl)
-                                    .crossfade(true)
-                                    .crossfade(600)
-                                    .build(),
-                                contentDescription = track.album,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(if (whiteTheme) Color(0xFFE2E8F0) else Color(0xFF1E1E1E))
-                            )
-
-                            // Floating Lyrics Toggle Button: STILL APPEARS in Lyrics Mode!
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .padding(6.dp)
-                                    .size(if (artSize < 100.dp) 26.dp else 32.dp)
-                                    .clip(CircleShape)
-                                    .background(if (whiteTheme) Color(0xFFE0F2FE) else Color.Black.copy(alpha = 0.75f))
-                                    .border(1.5.dp, accent, CircleShape)
-                                    .clickable(
-                                        indication = null,
-                                        interactionSource = remember { MutableInteractionSource() }
-                                    ) { onCloseLyrics() },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.FormatQuote,
-                                    contentDescription = "Exit Lyrics",
-                                    tint = accent,
-                                    modifier = Modifier.size(if (artSize < 100.dp) 13.dp else 16.dp)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(vSpacing + 2.dp))
-
-                        // Title with Music Note icon
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "🎵",
-                                fontSize = (titleSize.value - 2).sp,
-                                modifier = Modifier.padding(end = 5.dp)
-                            )
-                            Text(
-                                text = track.title.ifBlank { "Unknown Title" },
-                                style = MaterialTheme.typography.headlineMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = titleSize
-                                ),
-                                color = lyricsTextColor,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(vSpacing))
-
-                        // Artist with Profile/Note icon
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "👤",
-                                fontSize = (artistSize.value - 2).sp,
-                                modifier = Modifier.padding(end = 5.dp)
-                            )
-                            Text(
-                                text = track.artist.ifBlank { "Unknown Artist" },
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontSize = artistSize,
-                                    fontWeight = FontWeight.Medium
-                                ),
-                                color = lyricsSubColor,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(vSpacing))
-
-                        // Album & Release Year
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "💿",
-                                fontSize = (albumSize.value - 1).sp,
-                                modifier = Modifier.padding(end = 5.dp)
-                            )
-                            val albumYear = if (track.releaseYear.isNotBlank()) {
-                                "${track.album} • ${track.releaseYear}"
-                            } else {
-                                track.album.ifBlank { "Album" }
-                            }
-                            Text(
-                                text = albumYear,
-                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = albumSize),
-                                color = lyricsSubColor.copy(alpha = 0.85f),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(vSpacing + 2.dp))
-
-                        // Compact Action Row
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Heart / Like
-                            IconButton(
-                                onClick = onToggleLike,
-                                modifier = Modifier.size(ctrlBtnSize)
-                            ) {
-                                Text(text = if (isLiked) "❤️" else "🤍", fontSize = 16.sp)
-                            }
-
-                            // Shuffle
-                            IconButton(
-                                onClick = onToggleShuffle,
-                                modifier = Modifier.size(ctrlBtnSize)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Shuffle,
-                                    contentDescription = "Shuffle",
-                                    tint = if (isShuffle) accent else lyricsSubColor,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-
-                            // Skip Back
-                            IconButton(
-                                onClick = onSkipPrevious,
-                                modifier = Modifier.size(ctrlBtnSize)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.SkipPrevious,
-                                    contentDescription = "Previous",
-                                    tint = lyricsTextColor,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-
-                            // Play/Pause
-                            IconButton(
-                                onClick = onPlayPauseToggle,
-                                modifier = Modifier.size(ctrlBtnSize + 4.dp)
-                            ) {
-                                Crossfade(
-                                    targetState = track.isPlaying,
-                                    animationSpec = tween(180),
-                                    label = "LyricsPlayPauseCrossfade"
-                                ) { isPlaying ->
-                                    Icon(
-                                        imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                                        contentDescription = "Play/Pause",
-                                        tint = accent,
-                                        modifier = Modifier.size(26.dp)
-                                    )
-                                }
-                            }
-
-                            // Skip Forward
-                            IconButton(
-                                onClick = onSkipNext,
-                                modifier = Modifier.size(ctrlBtnSize)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.SkipNext,
-                                    contentDescription = "Next",
-                                    tint = lyricsTextColor,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-
-                            // Repeat
-                            IconButton(
-                                onClick = onToggleRepeat,
-                                modifier = Modifier.size(ctrlBtnSize)
-                            ) {
-                                Icon(
-                                    imageVector = if (repeatMode == 2) Icons.Filled.RepeatOne else Icons.Filled.Repeat,
-                                    contentDescription = "Repeat",
-                                    tint = if (repeatMode > 0) accent else lyricsSubColor,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-
-                            // Exit Lyrics
-                            IconButton(
-                                onClick = onCloseLyrics,
-                                modifier = Modifier.size(ctrlBtnSize)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Close,
-                                    contentDescription = "Exit Lyrics",
-                                    tint = lyricsSubColor,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(vSpacing))
-
-                        // Progress Bar & Duration Timestamps
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = formatTime(track.progressMs),
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                color = lyricsSubColor
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            LinearProgressIndicator(
-                                progress = { progressFraction },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(3.dp)
-                                    .clip(RoundedCornerShape(2.dp)),
-                                color = accent,
-                                trackColor = if (whiteTheme) Color.Black.copy(alpha = 0.1f) else Color.White.copy(alpha = 0.2f)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = formatTime(track.durationMs),
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                color = lyricsSubColor
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(28.dp))
-
-                // Right Column: Large Synced Karaoke Lyrics
-                Box(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .weight(0.58f)
-                ) {
-                    LyricsView(
-                        lyrics = lyrics,
-                        progressMs = track.progressMs,
-                        whiteTheme = whiteTheme,
-                        albumArtUrl = track.albumArtUrl,
-                        trackTitle = track.title,
-                        trackArtist = track.artist,
-                        dynamicColor = dynamicThemeColor,
-                        onSeekToTimestamp = onSeekToTimestamp
-                    )
-                }
-            }
-        }
-    } else {
-        // Vertical Portrait Lyrics View
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 24.dp, vertical = 20.dp)
-        ) {
+            // Header Bar: Playlist Context + Layout Selector + Close
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Row(
+                    modifier = Modifier
+                        .clickable { onCloseLyrics() }
+                        .weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Menu,
+                        contentDescription = "Playlist",
+                        tint = lyricsTextColor,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "PLAYING FROM PLAYLIST",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.2.sp,
+                                fontSize = 10.sp
+                            ),
+                            color = lyricsSubColor
+                        )
+                        Text(
+                            text = track.playlistContext.ifBlank { "Liked Songs" },
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp
+                            ),
+                            color = lyricsTextColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = { showLayoutSelector = true },
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(if (whiteTheme) Color.Black.copy(alpha = 0.05f) else Color.White.copy(alpha = 0.1f))
+                            .size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.DashboardCustomize,
+                            contentDescription = "Lyrics Layout Mode",
+                            tint = lyricsTextColor,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    IconButton(
+                        onClick = onCloseLyrics,
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(if (whiteTheme) Color.Black.copy(alpha = 0.05f) else Color.White.copy(alpha = 0.1f))
+                            .size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = "Exit Lyrics",
+                            tint = lyricsTextColor,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            when (currentMode) {
+                LyricsLayoutMode.CLASSIC_SPLIT -> {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CompactLyricsPlayerCard(
+                            track = track,
+                            progressFraction = progressFraction,
+                            isLiked = isLiked,
+                            isShuffle = isShuffle,
+                            repeatMode = repeatMode,
+                            accent = accent,
+                            lyricsTextColor = lyricsTextColor,
+                            lyricsSubColor = lyricsSubColor,
+                            whiteTheme = whiteTheme,
+                            onPlayPauseToggle = onPlayPauseToggle,
+                            onSkipNext = onSkipNext,
+                            onSkipPrevious = onSkipPrevious,
+                            onToggleShuffle = onToggleShuffle,
+                            onToggleLike = onToggleLike,
+                            onToggleRepeat = onToggleRepeat,
+                            onCloseLyrics = onCloseLyrics,
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .weight(0.42f)
+                        )
+
+                        Spacer(modifier = Modifier.width(28.dp))
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .weight(0.58f)
+                        ) {
+                            LyricsView(
+                                lyrics = lyrics,
+                                progressMs = track.progressMs,
+                                whiteTheme = whiteTheme,
+                                albumArtUrl = track.albumArtUrl,
+                                trackTitle = track.title,
+                                trackArtist = track.artist,
+                                dynamicColor = dynamicThemeColor,
+                                textAlign = TextAlign.Start,
+                                onSeekToTimestamp = onSeekToTimestamp
+                            )
+                        }
+                    }
+                }
+
+                LyricsLayoutMode.SWAPPED_SPLIT -> {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .weight(0.58f)
+                        ) {
+                            LyricsView(
+                                lyrics = lyrics,
+                                progressMs = track.progressMs,
+                                whiteTheme = whiteTheme,
+                                albumArtUrl = track.albumArtUrl,
+                                trackTitle = track.title,
+                                trackArtist = track.artist,
+                                dynamicColor = dynamicThemeColor,
+                                textAlign = TextAlign.Start,
+                                onSeekToTimestamp = onSeekToTimestamp
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(28.dp))
+
+                        CompactLyricsPlayerCard(
+                            track = track,
+                            progressFraction = progressFraction,
+                            isLiked = isLiked,
+                            isShuffle = isShuffle,
+                            repeatMode = repeatMode,
+                            accent = accent,
+                            lyricsTextColor = lyricsTextColor,
+                            lyricsSubColor = lyricsSubColor,
+                            whiteTheme = whiteTheme,
+                            onPlayPauseToggle = onPlayPauseToggle,
+                            onSkipNext = onSkipNext,
+                            onSkipPrevious = onSkipPrevious,
+                            onToggleShuffle = onToggleShuffle,
+                            onToggleLike = onToggleLike,
+                            onToggleRepeat = onToggleRepeat,
+                            onCloseLyrics = onCloseLyrics,
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .weight(0.42f)
+                        )
+                    }
+                }
+
+                LyricsLayoutMode.TOP_BANNER -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                    ) {
+                        CompactLyricsBanner(
+                            track = track,
+                            progressFraction = progressFraction,
+                            isLiked = isLiked,
+                            accent = accent,
+                            lyricsTextColor = lyricsTextColor,
+                            lyricsSubColor = lyricsSubColor,
+                            whiteTheme = whiteTheme,
+                            onPlayPauseToggle = onPlayPauseToggle,
+                            onSkipNext = onSkipNext,
+                            onSkipPrevious = onSkipPrevious,
+                            onToggleLike = onToggleLike,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                        ) {
+                            LyricsView(
+                                lyrics = lyrics,
+                                progressMs = track.progressMs,
+                                whiteTheme = whiteTheme,
+                                albumArtUrl = track.albumArtUrl,
+                                trackTitle = track.title,
+                                trackArtist = track.artist,
+                                dynamicColor = dynamicThemeColor,
+                                textAlign = TextAlign.Center,
+                                onSeekToTimestamp = onSeekToTimestamp
+                            )
+                        }
+                    }
+                }
+
+                LyricsLayoutMode.FULLSCREEN_CENTER,
+                LyricsLayoutMode.FULLSCREEN_LEFT -> {
+                    val isCenter = currentMode == LyricsLayoutMode.FULLSCREEN_CENTER
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                    ) {
+                        LyricsView(
+                            lyrics = lyrics,
+                            progressMs = track.progressMs,
+                            whiteTheme = whiteTheme,
+                            albumArtUrl = track.albumArtUrl,
+                            trackTitle = track.title,
+                            trackArtist = track.artist,
+                            dynamicColor = dynamicThemeColor,
+                            textAlign = if (isCenter) TextAlign.Center else TextAlign.Start,
+                            onSeekToTimestamp = onSeekToTimestamp,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(bottom = 60.dp)
+                        )
+
+                        FloatingLyricsPlayerBar(
+                            track = track,
+                            progressFraction = progressFraction,
+                            isLiked = isLiked,
+                            accent = accent,
+                            lyricsTextColor = lyricsTextColor,
+                            lyricsSubColor = lyricsSubColor,
+                            whiteTheme = whiteTheme,
+                            onPlayPauseToggle = onPlayPauseToggle,
+                            onSkipNext = onSkipNext,
+                            onSkipPrevious = onSkipPrevious,
+                            onToggleLike = onToggleLike,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 6.dp)
+                        )
+                    }
+                }
+            }
+        }
+    } else {
+        // Vertical Portrait Mode
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp, vertical = 16.dp)
+        ) {
+            // Portrait Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "PLAYING FROM PLAYLIST",
                         style = MaterialTheme.typography.labelSmall.copy(
@@ -2058,33 +2012,664 @@ private fun LyricsModeView(
                     Text(
                         text = track.playlistContext.ifBlank { "Liked Songs" },
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = lyricsTextColor
+                        color = lyricsTextColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
-                IconButton(onClick = onCloseLyrics) {
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { showLayoutSelector = true }) {
+                        Icon(
+                            imageVector = Icons.Filled.DashboardCustomize,
+                            contentDescription = "Lyrics Layout Mode",
+                            tint = lyricsTextColor
+                        )
+                    }
+                    IconButton(onClick = onCloseLyrics) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = "Close",
+                            tint = lyricsTextColor
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            when (currentMode) {
+                LyricsLayoutMode.TOP_BANNER -> {
+                    CompactLyricsBanner(
+                        track = track,
+                        progressFraction = progressFraction,
+                        isLiked = isLiked,
+                        accent = accent,
+                        lyricsTextColor = lyricsTextColor,
+                        lyricsSubColor = lyricsSubColor,
+                        whiteTheme = whiteTheme,
+                        onPlayPauseToggle = onPlayPauseToggle,
+                        onSkipNext = onSkipNext,
+                        onSkipPrevious = onSkipPrevious,
+                        onToggleLike = onToggleLike,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    LyricsView(
+                        lyrics = lyrics,
+                        progressMs = track.progressMs,
+                        whiteTheme = whiteTheme,
+                        albumArtUrl = track.albumArtUrl,
+                        trackTitle = track.title,
+                        trackArtist = track.artist,
+                        dynamicColor = dynamicThemeColor,
+                        textAlign = TextAlign.Center,
+                        onSeekToTimestamp = onSeekToTimestamp,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                LyricsLayoutMode.FULLSCREEN_CENTER,
+                LyricsLayoutMode.FULLSCREEN_LEFT -> {
+                    val isCenter = currentMode == LyricsLayoutMode.FULLSCREEN_CENTER
+                    Box(modifier = Modifier.weight(1f)) {
+                        LyricsView(
+                            lyrics = lyrics,
+                            progressMs = track.progressMs,
+                            whiteTheme = whiteTheme,
+                            albumArtUrl = track.albumArtUrl,
+                            trackTitle = track.title,
+                            trackArtist = track.artist,
+                            dynamicColor = dynamicThemeColor,
+                            textAlign = if (isCenter) TextAlign.Center else TextAlign.Start,
+                            onSeekToTimestamp = onSeekToTimestamp,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(bottom = 64.dp)
+                        )
+                        FloatingLyricsPlayerBar(
+                            track = track,
+                            progressFraction = progressFraction,
+                            isLiked = isLiked,
+                            accent = accent,
+                            lyricsTextColor = lyricsTextColor,
+                            lyricsSubColor = lyricsSubColor,
+                            whiteTheme = whiteTheme,
+                            onPlayPauseToggle = onPlayPauseToggle,
+                            onSkipNext = onSkipNext,
+                            onSkipPrevious = onSkipPrevious,
+                            onToggleLike = onToggleLike,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .fillMaxWidth()
+                        )
+                    }
+                }
+
+                else -> {
+                    // CLASSIC_SPLIT & SWAPPED_SPLIT in Portrait: Compact banner on top, lyrics on bottom
+                    CompactLyricsBanner(
+                        track = track,
+                        progressFraction = progressFraction,
+                        isLiked = isLiked,
+                        accent = accent,
+                        lyricsTextColor = lyricsTextColor,
+                        lyricsSubColor = lyricsSubColor,
+                        whiteTheme = whiteTheme,
+                        onPlayPauseToggle = onPlayPauseToggle,
+                        onSkipNext = onSkipNext,
+                        onSkipPrevious = onSkipPrevious,
+                        onToggleLike = onToggleLike,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    LyricsView(
+                        lyrics = lyrics,
+                        progressMs = track.progressMs,
+                        whiteTheme = whiteTheme,
+                        albumArtUrl = track.albumArtUrl,
+                        trackTitle = track.title,
+                        trackArtist = track.artist,
+                        dynamicColor = dynamicThemeColor,
+                        textAlign = TextAlign.Start,
+                        onSeekToTimestamp = onSeekToTimestamp,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Left/Right Column Player Card for Split Lyrics layouts.
+ */
+@Composable
+private fun CompactLyricsPlayerCard(
+    track: SpotifyTrack,
+    progressFraction: Float,
+    isLiked: Boolean,
+    isShuffle: Boolean,
+    repeatMode: Int,
+    accent: Color,
+    lyricsTextColor: Color,
+    lyricsSubColor: Color,
+    whiteTheme: Boolean,
+    onPlayPauseToggle: () -> Unit,
+    onSkipNext: () -> Unit,
+    onSkipPrevious: () -> Unit,
+    onToggleShuffle: () -> Unit,
+    onToggleLike: () -> Unit,
+    onToggleRepeat: () -> Unit,
+    onCloseLyrics: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    BoxWithConstraints(modifier = modifier) {
+        val availableH = maxHeight
+        val artSize = if (availableH < 280.dp) 85.dp else if (availableH < 340.dp) 100.dp else 115.dp
+        val titleSize = if (availableH < 280.dp) 16.sp else 18.sp
+        val artistSize = if (availableH < 280.dp) 13.sp else 14.sp
+        val albumSize = if (availableH < 280.dp) 10.sp else 11.sp
+        val vSpacing = if (availableH < 280.dp) 3.dp else 6.dp
+        val ctrlBtnSize = if (availableH < 280.dp) 28.dp else 32.dp
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(end = 16.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.Start
+        ) {
+            // Album Cover with rounded corners + Persistent Lyrics Toggle Button
+            Box(modifier = Modifier.size(artSize)) {
+                val context = LocalContext.current
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(track.albumArtUrl)
+                        .crossfade(true)
+                        .crossfade(600)
+                        .build(),
+                    contentDescription = track.album,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (whiteTheme) Color(0xFFE2E8F0) else Color(0xFF1E1E1E))
+                )
+
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(6.dp)
+                        .size(if (artSize < 100.dp) 26.dp else 32.dp)
+                        .clip(CircleShape)
+                        .background(if (whiteTheme) Color(0xFFE0F2FE) else Color.Black.copy(alpha = 0.75f))
+                        .border(1.5.dp, accent, CircleShape)
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) { onCloseLyrics() },
+                    contentAlignment = Alignment.Center
+                ) {
                     Icon(
-                        imageVector = Icons.Filled.Close,
-                        contentDescription = "Close",
-                        tint = lyricsTextColor
+                        imageVector = Icons.Filled.FormatQuote,
+                        contentDescription = "Exit Lyrics",
+                        tint = accent,
+                        modifier = Modifier.size(if (artSize < 100.dp) 13.dp else 16.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(vSpacing + 2.dp))
 
-            // Portrait Lyrics View
-            LyricsView(
-                lyrics = lyrics,
-                progressMs = track.progressMs,
-                whiteTheme = whiteTheme,
-                albumArtUrl = track.albumArtUrl,
-                trackTitle = track.title,
-                trackArtist = track.artist,
-                dynamicColor = dynamicThemeColor,
-                onSeekToTimestamp = onSeekToTimestamp,
-                modifier = Modifier.weight(1f)
-            )
+            // Title
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "🎵",
+                    fontSize = (titleSize.value - 2).sp,
+                    modifier = Modifier.padding(end = 5.dp)
+                )
+                Text(
+                    text = track.title.ifBlank { "Unknown Title" },
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = titleSize
+                    ),
+                    color = lyricsTextColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Spacer(modifier = Modifier.height(vSpacing))
+
+            // Artist
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "👤",
+                    fontSize = (artistSize.value - 2).sp,
+                    modifier = Modifier.padding(end = 5.dp)
+                )
+                Text(
+                    text = track.artist.ifBlank { "Unknown Artist" },
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontSize = artistSize,
+                        fontWeight = FontWeight.Medium
+                    ),
+                    color = lyricsSubColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Spacer(modifier = Modifier.height(vSpacing))
+
+            // Album & Year
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "💿",
+                    fontSize = (albumSize.value - 1).sp,
+                    modifier = Modifier.padding(end = 5.dp)
+                )
+                val albumYear = if (track.releaseYear.isNotBlank()) {
+                    "${track.album} • ${track.releaseYear}"
+                } else {
+                    track.album.ifBlank { "Album" }
+                }
+                Text(
+                    text = albumYear,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = albumSize),
+                    color = lyricsSubColor.copy(alpha = 0.85f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Spacer(modifier = Modifier.height(vSpacing + 2.dp))
+
+            // Action Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = onToggleLike,
+                    modifier = Modifier.size(ctrlBtnSize)
+                ) {
+                    Text(text = if (isLiked) "❤️" else "🤍", fontSize = 16.sp)
+                }
+
+                IconButton(
+                    onClick = onToggleShuffle,
+                    modifier = Modifier.size(ctrlBtnSize)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Shuffle,
+                        contentDescription = "Shuffle",
+                        tint = if (isShuffle) accent else lyricsSubColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                IconButton(
+                    onClick = onSkipPrevious,
+                    modifier = Modifier.size(ctrlBtnSize)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.SkipPrevious,
+                        contentDescription = "Previous",
+                        tint = lyricsTextColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                IconButton(
+                    onClick = onPlayPauseToggle,
+                    modifier = Modifier.size(ctrlBtnSize + 4.dp)
+                ) {
+                    Crossfade(
+                        targetState = track.isPlaying,
+                        animationSpec = tween(180),
+                        label = "LyricsPlayPauseCrossfade"
+                    ) { isPlaying ->
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                            contentDescription = "Play/Pause",
+                            tint = accent,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                }
+
+                IconButton(
+                    onClick = onSkipNext,
+                    modifier = Modifier.size(ctrlBtnSize)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.SkipNext,
+                        contentDescription = "Next",
+                        tint = lyricsTextColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                IconButton(
+                    onClick = onToggleRepeat,
+                    modifier = Modifier.size(ctrlBtnSize)
+                ) {
+                    Icon(
+                        imageVector = if (repeatMode == 2) Icons.Filled.RepeatOne else Icons.Filled.Repeat,
+                        contentDescription = "Repeat",
+                        tint = if (repeatMode > 0) accent else lyricsSubColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                IconButton(
+                    onClick = onCloseLyrics,
+                    modifier = Modifier.size(ctrlBtnSize)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = "Exit Lyrics",
+                        tint = lyricsSubColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(vSpacing))
+
+            // Progress Bar & Timestamps
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = formatTime(track.progressMs),
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                    color = lyricsSubColor
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                LinearProgressIndicator(
+                    progress = { progressFraction },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(3.dp)
+                        .clip(RoundedCornerShape(2.dp)),
+                    color = accent,
+                    trackColor = if (whiteTheme) Color.Black.copy(alpha = 0.1f) else Color.White.copy(alpha = 0.2f)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = formatTime(track.durationMs),
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                    color = lyricsSubColor
+                )
+            }
         }
+    }
+}
+
+/**
+ * Top horizontal banner layout for LyricsLayoutMode.TOP_BANNER
+ */
+@Composable
+private fun CompactLyricsBanner(
+    track: SpotifyTrack,
+    progressFraction: Float,
+    isLiked: Boolean,
+    accent: Color,
+    lyricsTextColor: Color,
+    lyricsSubColor: Color,
+    whiteTheme: Boolean,
+    onPlayPauseToggle: () -> Unit,
+    onSkipNext: () -> Unit,
+    onSkipPrevious: () -> Unit,
+    onToggleLike: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val bannerBg = if (whiteTheme) Color(0xFFF1F5F9) else Color(0xFF13151D).copy(alpha = 0.9f)
+    val bannerBorder = if (whiteTheme) Color(0xFFE2E8F0) else Color.White.copy(alpha = 0.12f)
+
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(bannerBg)
+            .border(1.dp, bannerBorder, RoundedCornerShape(16.dp))
+            .padding(horizontal = 14.dp, vertical = 10.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                val context = LocalContext.current
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(track.albumArtUrl)
+                        .crossfade(true)
+                        .crossfade(400)
+                        .build(),
+                    contentDescription = track.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                )
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = track.title.ifBlank { "Unknown Title" },
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = lyricsTextColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = track.artist.ifBlank { "Unknown Artist" },
+                        fontSize = 12.sp,
+                        color = lyricsSubColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                IconButton(onClick = onToggleLike, modifier = Modifier.size(32.dp)) {
+                    Text(text = if (isLiked) "❤️" else "🤍", fontSize = 14.sp)
+                }
+                IconButton(onClick = onSkipPrevious, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        imageVector = Icons.Filled.SkipPrevious,
+                        contentDescription = "Prev",
+                        tint = lyricsTextColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                IconButton(
+                    onClick = onPlayPauseToggle,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(accent)
+                ) {
+                    Icon(
+                        imageVector = if (track.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = "Play/Pause",
+                        tint = Color.Black,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+                IconButton(onClick = onSkipNext, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        imageVector = Icons.Filled.SkipNext,
+                        contentDescription = "Next",
+                        tint = lyricsTextColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        LinearProgressIndicator(
+            progress = { progressFraction },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(3.dp)
+                .clip(RoundedCornerShape(2.dp)),
+            color = accent,
+            trackColor = if (whiteTheme) Color.Black.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.15f)
+        )
+    }
+}
+
+/**
+ * Floating bottom playback pill for Fullscreen Lyrics layouts.
+ */
+@Composable
+private fun FloatingLyricsPlayerBar(
+    track: SpotifyTrack,
+    progressFraction: Float,
+    isLiked: Boolean,
+    accent: Color,
+    lyricsTextColor: Color,
+    lyricsSubColor: Color,
+    whiteTheme: Boolean,
+    onPlayPauseToggle: () -> Unit,
+    onSkipNext: () -> Unit,
+    onSkipPrevious: () -> Unit,
+    onToggleLike: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val barBg = if (whiteTheme) Color.White.copy(alpha = 0.92f) else Color(0xFF13151D).copy(alpha = 0.88f)
+    val barBorder = if (whiteTheme) Color(0xFFCBD5E1) else Color.White.copy(alpha = 0.15f)
+
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(24.dp))
+            .background(barBg)
+            .border(1.dp, barBorder, RoundedCornerShape(24.dp))
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxWidth(0.9f)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                val context = LocalContext.current
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(track.albumArtUrl)
+                        .crossfade(true)
+                        .crossfade(300)
+                        .build(),
+                    contentDescription = track.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                )
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = track.title.ifBlank { "Unknown Title" },
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = lyricsTextColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = track.artist.ifBlank { "Unknown Artist" },
+                        fontSize = 11.sp,
+                        color = lyricsSubColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                IconButton(onClick = onToggleLike, modifier = Modifier.size(28.dp)) {
+                    Text(text = if (isLiked) "❤️" else "🤍", fontSize = 13.sp)
+                }
+                IconButton(onClick = onSkipPrevious, modifier = Modifier.size(28.dp)) {
+                    Icon(
+                        imageVector = Icons.Filled.SkipPrevious,
+                        contentDescription = "Prev",
+                        tint = lyricsTextColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                IconButton(
+                    onClick = onPlayPauseToggle,
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(accent)
+                ) {
+                    Icon(
+                        imageVector = if (track.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = "Play/Pause",
+                        tint = Color.Black,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                IconButton(onClick = onSkipNext, modifier = Modifier.size(28.dp)) {
+                    Icon(
+                        imageVector = Icons.Filled.SkipNext,
+                        contentDescription = "Next",
+                        tint = lyricsTextColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        LinearProgressIndicator(
+            progress = { progressFraction },
+            modifier = Modifier
+                .fillMaxWidth(0.9f)
+                .height(2.5.dp)
+                .clip(RoundedCornerShape(2.dp)),
+            color = accent,
+            trackColor = if (whiteTheme) Color.Black.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.15f)
+        )
     }
 }
 

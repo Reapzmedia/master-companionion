@@ -491,27 +491,47 @@ object WebDashboardHtml {
                 const data = await res.json();
 
                 // Battery Telemetry
-                if (data.battery) {
-                    document.getElementById('metric-level').innerText = data.battery.level + '%';
-                    document.getElementById('metric-wattage').innerText = Math.abs(data.battery.wattage).toFixed(1) + ' W';
-                    document.getElementById('metric-voltage').innerText = data.battery.voltageVolts.toFixed(2) + ' V';
-                    document.getElementById('metric-current').innerText = (data.battery.currentMa >= 0 ? '+' : '') + data.battery.currentMa + ' mA';
-                    document.getElementById('metric-temp').innerText = data.battery.temperatureC.toFixed(1) + ' °C';
-                    document.getElementById('metric-bypass').innerText = data.battery.isBypassed ? 'ACTIVE' : 'OFF';
+                if (data && data.battery) {
+                    const b = data.battery;
+                    const level = b.level !== undefined ? b.level : (b.percentage !== undefined ? b.percentage : '--');
+                    const wattage = b.wattage !== undefined ? Math.abs(b.wattage).toFixed(1) : '--';
+                    const volts = b.voltageVolts !== undefined ? b.voltageVolts.toFixed(2) : '--';
+                    const current = b.currentMa !== undefined ? ((b.currentMa >= 0 ? '+' : '') + b.currentMa) : (b.currentAmperes !== undefined ? (b.currentAmperes * 1000).toFixed(0) : '--');
+                    const temp = b.temperatureC !== undefined ? b.temperatureC.toFixed(1) : (b.temperatureCelsius !== undefined ? b.temperatureCelsius.toFixed(1) : '--');
+                    const isBypassed = b.isBypassed !== undefined ? b.isBypassed : b.isChargeLimitActive;
+
+                    const elLevel = document.getElementById('metric-level');
+                    if (elLevel) elLevel.innerText = level + '%';
+                    const elWatt = document.getElementById('metric-wattage');
+                    if (elWatt) elWatt.innerText = wattage + ' W';
+                    const elVolt = document.getElementById('metric-voltage');
+                    if (elVolt) elVolt.innerText = volts + ' V';
+                    const elCurr = document.getElementById('metric-current');
+                    if (elCurr) elCurr.innerText = current + ' mA';
+                    const elTemp = document.getElementById('metric-temp');
+                    if (elTemp) elTemp.innerText = temp + ' °C';
+                    const elBypass = document.getElementById('metric-bypass');
+                    if (elBypass) elBypass.innerText = isBypassed ? 'ACTIVE' : 'OFF';
                 }
 
                 // Media Telemetry
-                if (data.currentTrack) {
-                    document.getElementById('track-title').innerText = data.currentTrack.title || 'Untitled';
-                    document.getElementById('track-artist').innerText = (data.currentTrack.artist || 'Unknown') + ' • ' + (data.currentTrack.album || '');
-                    if (data.currentTrack.albumArtUrl) {
-                        document.getElementById('track-art').src = data.currentTrack.albumArtUrl;
+                if (data && data.currentTrack) {
+                    const t = data.currentTrack;
+                    const elTitle = document.getElementById('track-title');
+                    if (elTitle) elTitle.innerText = t.title || 'Untitled';
+                    const elArtist = document.getElementById('track-artist');
+                    if (elArtist) elArtist.innerText = (t.artist || 'Unknown') + (t.album ? ' • ' + t.album : '');
+                    if (t.albumArtUrl) {
+                        const elArt = document.getElementById('track-art');
+                        if (elArt) elArt.src = t.albumArtUrl;
                     }
-                    document.getElementById('btn-play-pause').innerText = data.currentTrack.isPlaying ? '⏸' : '▶';
+                    const elPlay = document.getElementById('btn-play-pause');
+                    if (elPlay) elPlay.innerText = t.isPlaying ? '⏸' : '▶';
 
-                    if (data.currentTrack.durationMs > 0) {
-                        const pct = Math.min(100, Math.max(0, (data.currentTrack.progressMs / data.currentTrack.durationMs) * 100));
-                        document.getElementById('track-progress').style.width = pct + '%';
+                    if (t.durationMs > 0) {
+                        const pct = Math.min(100, Math.max(0, (t.progressMs / t.durationMs) * 100));
+                        const elProgress = document.getElementById('track-progress');
+                        if (elProgress) elProgress.style.width = pct + '%';
                     }
                 }
             } catch (err) {

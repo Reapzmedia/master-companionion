@@ -1,5 +1,9 @@
 package com.mastercompanion.ui.audio
 
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -54,251 +58,311 @@ fun AudioPage(
     var volume by remember { mutableFloatStateOf(1.0f) }
     var isMuted by remember { androidx.compose.runtime.mutableStateOf(false) }
 
+    val configuration = LocalConfiguration.current
+    val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(Color(0xFF0A0A0C))
-            .padding(horizontal = 40.dp, vertical = 28.dp)
+            .padding(horizontal = if (isPortrait) 20.dp else 40.dp, vertical = if (isPortrait) 20.dp else 28.dp)
+    ) {
+        if (isPortrait) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                LiveStreamMonitorCard(streamState = streamState)
+
+                AudioVolumeCard(
+                    volume = volume,
+                    isMuted = isMuted,
+                    onVolumeChange = {
+                        volume = it
+                        isMuted = false
+                        onVolumeChange(it)
+                    },
+                    onToggleMute = {
+                        isMuted = !isMuted
+                        onVolumeChange(if (isMuted) 0f else volume)
+                    }
+                )
+
+                AudioLaunchGuideCard()
+
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.spacedBy(36.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                LiveStreamMonitorCard(
+                    streamState = streamState,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                )
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    AudioVolumeCard(
+                        volume = volume,
+                        isMuted = isMuted,
+                        onVolumeChange = {
+                            volume = it
+                            isMuted = false
+                            onVolumeChange(it)
+                        },
+                        onToggleMute = {
+                            isMuted = !isMuted
+                            onVolumeChange(if (isMuted) 0f else volume)
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    AudioLaunchGuideCard()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LiveStreamMonitorCard(
+    streamState: AudioStreamState,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.Center
     ) {
         Row(
-            modifier = Modifier.fillMaxSize(),
-            horizontalArrangement = Arrangement.spacedBy(36.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color(0xFF16181D))
+                .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
+                .padding(horizontal = 14.dp, vertical = 6.dp)
         ) {
-            // ═══ LEFT COLUMN: Live Stream Monitor ═══
-            Column(
+            Box(
                 modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight(),
-                verticalArrangement = Arrangement.Center
-            ) {
-                // Header badge
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(if (streamState.isReceiving) Color(0xFF10B981) else Color(0xFF6B7280))
+            )
+            Text(
+                text = if (streamState.isReceiving) "STREAMING ACTIVE" else "LISTENING (UDP :8421)",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp,
+                color = Color.White.copy(alpha = 0.85f)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        Text(
+            text = "PC Audio Passthrough",
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White
+        )
+
+        Text(
+            text = "Ultra low-latency WASAPI loopback receiver over Wi-Fi or USB tethering",
+            fontSize = 13.sp,
+            color = Color.White.copy(alpha = 0.55f),
+            modifier = Modifier.padding(top = 4.dp)
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Stats Panel
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color(0xFF12141A))
+                .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+                .padding(20.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Color(0xFF16181D))
-                        .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
-                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Box(
+                    AudioStatItem(
+                        label = "CODEC",
+                        value = "${streamState.codec.name} 48kHz Stereo",
+                        color = Color(0xFF38BDF8)
+                    )
+                    AudioStatItem(
+                        label = "LATENCY",
+                        value = if (streamState.isReceiving) String.format(Locale.US, "%.0f ms", streamState.bufferLatencyMs) else "—",
+                        color = Color(0xFF10B981)
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    AudioStatItem(
+                        label = "PACKETS RECV",
+                        value = "${streamState.packetsReceived}",
+                        color = Color.White
+                    )
+                    AudioStatItem(
+                        label = "PACKET LOSS",
+                        value = if (streamState.packetsReceived > 0) {
+                            val lossRate = (streamState.packetsLost.toFloat() / (streamState.packetsReceived + streamState.packetsLost)) * 100f
+                            String.format(Locale.US, "%.1f%%", lossRate)
+                        } else "0.0%",
+                        color = if (streamState.packetsLost > 0) Color(0xFFF59E0B) else Color(0xFF34D399)
+                    )
+                }
+
+                if (streamState.clientIp != null) {
+                    Row(
                         modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(if (streamState.isReceiving) Color(0xFF10B981) else Color(0xFF6B7280))
-                    )
-                    Text(
-                        text = if (streamState.isReceiving) "STREAMING ACTIVE" else "LISTENING (UDP :8421)",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp,
-                        color = Color.White.copy(alpha = 0.85f)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                Text(
-                    text = "PC Audio Passthrough",
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-
-                Text(
-                    text = "Ultra low-latency WASAPI loopback receiver over Wi-Fi or USB tethering",
-                    fontSize = 14.sp,
-                    color = Color.White.copy(alpha = 0.55f),
-                    modifier = Modifier.padding(top = 6.dp)
-                )
-
-                Spacer(modifier = Modifier.height(28.dp))
-
-                // Stats Panel
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFF12141A))
-                        .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
-                        .padding(20.dp)
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            AudioStatItem(
-                                label = "CODEC",
-                                value = "${streamState.codec.name} 48kHz Stereo",
-                                color = Color(0xFF38BDF8)
-                            )
-                            AudioStatItem(
-                                label = "LATENCY",
-                                value = if (streamState.isReceiving) String.format(Locale.US, "%.0f ms", streamState.bufferLatencyMs) else "—",
-                                color = Color(0xFF10B981)
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            AudioStatItem(
-                                label = "PACKETS RECV",
-                                value = "${streamState.packetsReceived}",
-                                color = Color.White
-                            )
-                            AudioStatItem(
-                                label = "PACKET LOSS",
-                                value = if (streamState.packetsReceived > 0) {
-                                    val lossRate = (streamState.packetsLost.toFloat() / (streamState.packetsReceived + streamState.packetsLost)) * 100f
-                                    String.format(Locale.US, "%.1f%%", lossRate)
-                                } else "0.0%",
-                                color = if (streamState.packetsLost > 0) Color(0xFFF59E0B) else Color(0xFF34D399)
-                            )
-                        }
-
-                        if (streamState.clientIp != null) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFF1A1D24))
-                                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = "Connected Source",
-                                    fontSize = 11.sp,
-                                    color = Color.White.copy(alpha = 0.5f)
-                                )
-                                Text(
-                                    text = streamState.clientIp,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace,
-                                    color = Color(0xFF60A5FA)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // ═══ RIGHT COLUMN: Volume & Quick Launch Guide ═══
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight(),
-                verticalArrangement = Arrangement.Center
-            ) {
-                // Volume Card
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFF12141A))
-                        .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
-                        .padding(20.dp)
-                ) {
-                    Column {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "OUTPUT VOLUME",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.sp,
-                                color = Color.White.copy(alpha = 0.5f)
-                            )
-                            Text(
-                                text = if (isMuted) "MUTED" else "${(volume * 100).toInt()}%",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isMuted) Color(0xFFEF4444) else Color.White
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            IconButton(onClick = {
-                                isMuted = !isMuted
-                                onVolumeChange(if (isMuted) 0f else volume)
-                            }) {
-                                Icon(
-                                    imageVector = if (isMuted || volume == 0f) Icons.AutoMirrored.Filled.VolumeMute else Icons.AutoMirrored.Filled.VolumeUp,
-                                    contentDescription = "Mute",
-                                    tint = Color.White.copy(alpha = 0.8f)
-                                )
-                            }
-
-                            Slider(
-                                value = if (isMuted) 0f else volume,
-                                onValueChange = {
-                                    volume = it
-                                    isMuted = false
-                                    onVolumeChange(it)
-                                },
-                                colors = SliderDefaults.colors(
-                                    thumbColor = Color.White,
-                                    activeTrackColor = Color(0xFF38BDF8),
-                                    inactiveTrackColor = Color(0xFF262933)
-                                ),
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Setup Instructions Card
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFF141720))
-                        .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(16.dp))
-                        .padding(18.dp)
-                ) {
-                    Column {
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFF1A1D24))
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
                         Text(
-                            text = "PC STREAMING COMMAND",
+                            text = "Connected Source",
+                            fontSize = 11.sp,
+                            color = Color.White.copy(alpha = 0.5f)
+                        )
+                        Text(
+                            text = streamState.clientIp,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp,
-                            color = Color(0xFF38BDF8)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "python pc/audio/audio_streamer.py --target-ip <PHONE_IP>",
-                            fontSize = 12.sp,
                             fontFamily = FontFamily.Monospace,
-                            color = Color.White.copy(alpha = 0.85f),
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(Color(0xFF0F1117))
-                                .padding(8.dp)
-                                .fillMaxWidth()
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "For USB: Run pc/scripts/setup_adb_reverse.bat first",
-                            fontSize = 11.sp,
-                            color = Color.White.copy(alpha = 0.45f)
+                            color = Color(0xFF60A5FA)
                         )
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun AudioVolumeCard(
+    volume: Float,
+    isMuted: Boolean,
+    onVolumeChange: (Float) -> Unit,
+    onToggleMute: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFF12141A))
+            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+            .padding(20.dp)
+    ) {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "OUTPUT VOLUME",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp,
+                    color = Color.White.copy(alpha = 0.5f)
+                )
+                Text(
+                    text = if (isMuted) "MUTED" else "${(volume * 100).toInt()}%",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isMuted) Color(0xFFEF4444) else Color.White
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                IconButton(onClick = onToggleMute) {
+                    Icon(
+                        imageVector = if (isMuted || volume == 0f) Icons.AutoMirrored.Filled.VolumeMute else Icons.AutoMirrored.Filled.VolumeUp,
+                        contentDescription = "Mute",
+                        tint = Color.White.copy(alpha = 0.8f)
+                    )
+                }
+
+                Slider(
+                    value = if (isMuted) 0f else volume,
+                    onValueChange = onVolumeChange,
+                    colors = SliderDefaults.colors(
+                        thumbColor = Color.White,
+                        activeTrackColor = Color(0xFF38BDF8),
+                        inactiveTrackColor = Color(0xFF262933)
+                    ),
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AudioLaunchGuideCard(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFF141720))
+            .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(16.dp))
+            .padding(18.dp)
+    ) {
+        Column {
+            Text(
+                text = "PC STREAMING COMMAND",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp,
+                color = Color(0xFF38BDF8)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "python pc/audio/audio_streamer.py --target-ip <PHONE_IP>",
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace,
+                color = Color.White.copy(alpha = 0.85f),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Color(0xFF0F1117))
+                    .padding(8.dp)
+                    .fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "For USB: Run pc/scripts/setup_adb_reverse.bat first",
+                fontSize = 11.sp,
+                color = Color.White.copy(alpha = 0.45f)
+            )
         }
     }
 }

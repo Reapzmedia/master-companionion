@@ -13,11 +13,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -63,7 +65,8 @@ enum class ClockStyle(val displayName: String) {
     MINIMALIST("Minimalist Digital"),
     ANALOG_GAUGE("Analog Precision Gauge"),
     SPLIT_FLAP("Retro Split-Flap"),
-    WORD_CLOCK("Word Clock Matrix")
+    WORD_CLOCK("Word Clock Matrix"),
+    PURE_MINIMALIST("Pure Screen-Fit Clock")
 }
 
 @Composable
@@ -81,6 +84,7 @@ fun ClockStyleHost(
             ClockStyle.ANALOG_GAUGE -> AnalogPrecisionGaugeClock(currentTime, batteryData, whiteTheme, use24Hour)
             ClockStyle.SPLIT_FLAP -> RetroSplitFlapClock(currentTime, batteryData, whiteTheme, use24Hour)
             ClockStyle.WORD_CLOCK -> WordMatrixClock(currentTime, batteryData, whiteTheme, use24Hour)
+            ClockStyle.PURE_MINIMALIST -> PureScreenFitClock(currentTime, whiteTheme, use24Hour)
         }
     }
 }
@@ -136,7 +140,7 @@ fun MinimalistDigitalClock(
             )
             Text(
                 text = if (batteryData.isBypassed) "AC BYPASS ACTIVE • ${batteryData.level}%"
-                else if (batteryData.isCharging) "DOCK CHARGING • ${batteryData.level}%"
+                else if (batteryData.isCharging) "DOCK CHARGING • ${batteryData.level}% • ${String.format(Locale.US, "%.1fW", kotlin.math.abs(batteryData.wattage))}"
                 else "BATTERY • ${batteryData.level}%",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
@@ -344,7 +348,8 @@ fun AnalogPrecisionGaugeClock(
                 color = if (whiteTheme) Color(0xFF4B5563) else Color.White.copy(alpha = 0.6f)
             )
             Text(
-                text = "CHRONO GAUGED • ${batteryData.level}% PWR",
+                text = if (batteryData.isBypassed) "CHRONO GAUGED • ${batteryData.level}% • BYPASS"
+                else "CHRONO GAUGED • ${batteryData.level}% • ${String.format(Locale.US, "%.1fW", kotlin.math.abs(batteryData.wattage))}",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
                 letterSpacing = 1.5.sp,
@@ -562,3 +567,80 @@ private fun WordRow(
         }
     }
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// Style 4: Pure Minimalist Screen-Fit Clock (Auto-Scaling, No Charging UI)
+// ═══════════════════════════════════════════════════════════════════
+@Composable
+fun PureScreenFitClock(
+    currentTime: Long,
+    whiteTheme: Boolean,
+    use24Hour: Boolean = true
+) {
+    val timePattern = if (use24Hour) "HH:mm" else "hh:mm"
+    val timeFormat = remember(use24Hour) { SimpleDateFormat(timePattern, Locale.getDefault()) }
+    val amPmFormat = remember { SimpleDateFormat("a", Locale.getDefault()) }
+    val dateFormat = remember { SimpleDateFormat("EEEE, MMMM d", Locale.getDefault()) }
+
+    val formattedTime = remember(currentTime, use24Hour) { timeFormat.format(Date(currentTime)) }
+    val formattedAmPm = remember(currentTime) { amPmFormat.format(Date(currentTime)) }
+    val formattedDate = remember(currentTime) { dateFormat.format(Date(currentTime)) }
+
+    val primaryTextColor = if (whiteTheme) Color(0xFF0F172A) else Color.White
+    val secondaryTextColor = if (whiteTheme) Color(0xFF64748B) else Color.White.copy(alpha = 0.55f)
+
+    androidx.compose.foundation.layout.BoxWithConstraints(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        val availWidth = maxWidth
+        val availHeight = maxHeight
+        val isPortrait = availHeight > availWidth
+
+        // Dynamically scale font based on available box boundaries
+        val baseFontSize = if (isPortrait) {
+            (availWidth.value * 0.28f).sp
+        } else {
+            (availHeight.value * 0.42f).sp
+        }
+
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = formattedTime,
+                    fontSize = baseFontSize,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = (-2).sp,
+                    color = primaryTextColor,
+                    lineHeight = baseFontSize
+                )
+                if (!use24Hour) {
+                    Text(
+                        text = " $formattedAmPm",
+                        fontSize = (baseFontSize.value * 0.28f).sp,
+                        fontWeight = FontWeight.Bold,
+                        color = secondaryTextColor,
+                        modifier = Modifier.padding(bottom = (baseFontSize.value * 0.12f).dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = formattedDate.uppercase(),
+                fontSize = (baseFontSize.value * 0.15f).coerceIn(11f, 18f).sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 2.sp,
+                color = secondaryTextColor
+            )
+        }
+    }
+}
+

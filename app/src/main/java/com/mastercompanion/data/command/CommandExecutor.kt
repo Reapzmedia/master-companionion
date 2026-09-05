@@ -71,8 +71,9 @@ class CommandExecutor @Inject constructor(
                 "wol" -> {
                     val mac = request.params["mac"]
                         ?: preferencesRepository.pcMacFlow.first().ifBlank { null }
-                    val ip = request.params["ip"]
-                        ?: preferencesRepository.pcIpFlow.first().ifBlank { "255.255.255.255" }
+                    val customIp = request.params["broadcast"] ?: request.params["ip"]
+                        ?: preferencesRepository.wolBroadcastIpFlow.first().ifBlank { null }
+                        ?: preferencesRepository.pcIpFlow.first().ifBlank { null }
 
                     if (mac.isNullOrBlank()) {
                         CommandResponse(
@@ -81,10 +82,10 @@ class CommandExecutor @Inject constructor(
                             action = request.action
                         )
                     } else {
-                        val success = wolSender.sendWol(mac, ip)
+                        val success = wolSender.sendWol(mac, customIp)
                         CommandResponse(
                             status = if (success) "ok" else "error",
-                            message = if (success) "Magic packet broadcasted to $mac ($ip)" else "Failed to send WoL packet",
+                            message = if (success) "Magic packet broadcasted to $mac (Target/Broadcast: ${customIp ?: "auto-detect"})" else "Failed to send WoL packet",
                             action = request.action
                         )
                     }

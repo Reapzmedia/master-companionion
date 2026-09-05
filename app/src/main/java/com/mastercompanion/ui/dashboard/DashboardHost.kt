@@ -35,6 +35,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.Manifest
 import androidx.compose.ui.platform.LocalContext
+import com.mastercompanion.data.update.UpdateStatus
 import com.mastercompanion.ui.audio.AudioPage
 import com.mastercompanion.ui.home.HomePage
 import com.mastercompanion.ui.home.MusicPage
@@ -42,6 +43,7 @@ import com.mastercompanion.ui.home.MusicPlayerLayout
 import com.mastercompanion.ui.settings.SettingsPage
 import com.mastercompanion.ui.system.SystemPage
 import com.mastercompanion.ui.theme.MasterCompanionTheme
+import com.mastercompanion.ui.update.UpdateDialog
 import kotlinx.coroutines.launch
 
 /**
@@ -100,6 +102,11 @@ fun DashboardHost(
     val spotifyVolume by viewModel.spotifyVolume.collectAsStateWithLifecycle()
     val activeDeviceName by viewModel.activeDeviceName.collectAsStateWithLifecycle()
 
+    val wolBroadcastIp by viewModel.wolBroadcastIp.collectAsStateWithLifecycle()
+    val lyricsLayout by viewModel.lyricsLayout.collectAsStateWithLifecycle()
+    val autoCheckUpdates by viewModel.autoCheckUpdates.collectAsStateWithLifecycle()
+    val updateStatus by viewModel.updateStatus.collectAsStateWithLifecycle()
+
     var isFullscreenClock by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
@@ -140,6 +147,7 @@ fun DashboardHost(
                             chargeResumeThreshold = chargeResumeThreshold,
                             pcIp = pcIp,
                             pcMac = pcMac,
+                            wolBroadcastIp = wolBroadcastIp,
                             spotifyClientId = spotifyClientId,
                             isSpotifyConnected = isSpotifyConnected,
                             isLibraryScopeMissing = isLibraryScopeMissing,
@@ -156,9 +164,11 @@ fun DashboardHost(
                             clockStyleIndex = clockStyle,
                             autoLaunchOnCharging = autoLaunchOnCharging,
                             autoFullscreenClockEnabled = autoFullscreenClockEnabled,
+                            autoCheckUpdates = autoCheckUpdates,
                             onSaveThresholds = { stop, resume -> viewModel.updateChargeThresholds(stop, resume) },
                             onRegenerateToken = { viewModel.regenerateAuthToken() },
                             onSavePcNetwork = { ip, mac -> viewModel.updatePcNetwork(ip, mac) },
+                            onSaveWolBroadcastIp = { viewModel.updateWolBroadcastIp(it) },
                             onSaveSpotifyClientId = { viewModel.updateSpotifyClientId(it) },
                             onConnectSpotify = { viewModel.connectSpotify() },
                             onDisconnectSpotify = { viewModel.disconnectSpotify() },
@@ -170,6 +180,8 @@ fun DashboardHost(
                             onToggleCalendar = { viewModel.setCalendarEnabled(it) },
                             onToggleAutoLaunchOnCharging = { viewModel.setAutoLaunchOnCharging(it) },
                             onToggleAutoFullscreenClock = { viewModel.setAutoFullscreenClock(it) },
+                            onToggleAutoCheckUpdates = { viewModel.setAutoCheckUpdates(it) },
+                            onCheckForUpdates = { viewModel.checkForUpdate() },
                             onClockStyleChanged = { viewModel.setClockStyle(it) },
                             onRequestCalendarPermission = {
                                 calendarPermissionLauncher.launch(Manifest.permission.READ_CALENDAR)
@@ -185,6 +197,7 @@ fun DashboardHost(
                             batteryData = batteryData,
                             pcMac = pcMac,
                             pcIp = pcIp,
+                            wolBroadcastIp = wolBroadcastIp,
                             whiteTheme = whiteTheme,
                             pixelShiftEnabled = pixelShift,
                             use24Hour = use24Hour,
@@ -196,8 +209,9 @@ fun DashboardHost(
                             hasCalendarPermission = hasCalendarPermission,
                             syncedAccount = syncedAccount,
                             onToggleChargeLimit = { viewModel.toggleChargeLimit() },
-                            onSendWol = { mac, ip -> viewModel.sendWol(mac, ip) },
+                            onSendWol = { mac, _, broadcastIp -> viewModel.sendWol(mac, broadcastIp) },
                             onSavePcNetwork = { ip, mac -> viewModel.updatePcNetwork(ip, mac) },
+                            onSaveWolBroadcast = { viewModel.updateWolBroadcastIp(it) },
                             onClockStyleChanged = { viewModel.setClockStyle(it) },
                             onToggleCalendar = { viewModel.setCalendarEnabled(it) },
                             onFullscreenChanged = { isFullscreenClock = it },
@@ -226,6 +240,8 @@ fun DashboardHost(
                             initialLayout = MusicPlayerLayout.values().getOrElse(musicLayout) { MusicPlayerLayout.STANDARD },
                             spotifyVolume = spotifyVolume,
                             activeDeviceName = activeDeviceName,
+                            lyricsLayout = lyricsLayout,
+                            onLyricsLayoutChanged = { viewModel.setLyricsLayout(it) },
                             onSetSpotifyVolume = { viewModel.setSpotifyVolume(it) },
                             onPlayPauseToggle = { viewModel.togglePlayPause() },
                             onSkipNext = { viewModel.skipNext() },
@@ -293,6 +309,17 @@ fun DashboardHost(
                         )
                     }
                 }
+            }
+
+            // ═══ OTA Update Modal Dialog ═══
+            if (updateStatus !is UpdateStatus.Idle) {
+                UpdateDialog(
+                    status = updateStatus,
+                    onDownloadAndInstall = { url -> viewModel.downloadAndInstallUpdate(url) },
+                    onDismiss = { viewModel.dismissUpdate() },
+                    onCheckAgain = { viewModel.checkForUpdate() },
+                    whiteTheme = whiteTheme
+                )
             }
         }
     }

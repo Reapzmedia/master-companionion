@@ -201,6 +201,7 @@ fun LyricsView(
     trackTitle: String = "",
     trackArtist: String = "",
     dynamicColor: Color? = null,
+    textAlign: androidx.compose.ui.text.style.TextAlign = androidx.compose.ui.text.style.TextAlign.Start,
     onSeekToTimestamp: (Long) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -326,6 +327,7 @@ fun LyricsView(
                         isActive = isActive,
                         distance = distance,
                         palette = palette,
+                        textAlign = textAlign,
                         onSeekToTimestamp = onSeekToTimestamp,
                         onPositionMeasured = onPositionMeasured
                     )
@@ -351,6 +353,7 @@ private fun LyricLineRow(
     isActive: Boolean,
     distance: Int,
     palette: LyricPalette,
+    textAlign: androidx.compose.ui.text.style.TextAlign = androidx.compose.ui.text.style.TextAlign.Start,
     onSeekToTimestamp: (Long) -> Unit,
     onPositionMeasured: (Int, Float) -> Unit,
     modifier: Modifier = Modifier
@@ -396,6 +399,7 @@ private fun LyricLineRow(
 
     // Subtle optical depth-of-field blur on distant lines (API 31+ only, sharp on upcoming line)
     val shouldBlur = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && distance in 2..4
+    val isCenter = textAlign == androidx.compose.ui.text.style.TextAlign.Center
 
     var itemModifier = modifier
         .fillMaxWidth()
@@ -404,7 +408,7 @@ private fun LyricLineRow(
             scaleX = animatedScale
             scaleY = animatedScale
             alpha = animatedAlpha
-            transformOrigin = TransformOrigin(0f, 0.5f)
+            transformOrigin = TransformOrigin(if (isCenter) 0.5f else 0f, 0.5f)
         }
         .onGloballyPositioned { coordinates ->
             val lineTop = coordinates.positionInParent().y
@@ -424,6 +428,7 @@ private fun LyricLineRow(
 
     Text(
         text = line.words,
+        textAlign = textAlign,
         style = MaterialTheme.typography.headlineLarge.copy(
             fontWeight = FontWeight.Bold,
             fontSize = 28.sp,
