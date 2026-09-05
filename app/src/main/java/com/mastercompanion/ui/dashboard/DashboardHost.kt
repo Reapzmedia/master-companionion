@@ -258,6 +258,7 @@ fun DashboardHost(
                         // ═══ Page 3: PC Low-Latency UDP Audio Receiver ═══
                         AudioPage(
                             streamState = audioStreamState,
+                            deviceIp = deviceIp,
                             onVolumeChange = { viewModel.setAudioVolume(it) }
                         )
                     }

@@ -59,6 +59,36 @@ class StandardBatteryDataSource @Inject constructor(
 
                 val wattage = kotlin.math.abs(voltageVolts * signedCurrent)
 
+                val healthRaw = intent.getIntExtra(BatteryManager.EXTRA_HEALTH, BatteryManager.BATTERY_HEALTH_UNKNOWN)
+                val health = when (healthRaw) {
+                    BatteryManager.BATTERY_HEALTH_GOOD -> "Good"
+                    BatteryManager.BATTERY_HEALTH_OVERHEAT -> "Overheat"
+                    BatteryManager.BATTERY_HEALTH_DEAD -> "Dead"
+                    BatteryManager.BATTERY_HEALTH_OVER_VOLTAGE -> "Over Voltage"
+                    BatteryManager.BATTERY_HEALTH_UNSPECIFIED_FAILURE -> "Failure"
+                    BatteryManager.BATTERY_HEALTH_COLD -> "Cold"
+                    else -> "Normal"
+                }
+
+                val plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0)
+                val powerSource = when {
+                    plugged and BatteryManager.BATTERY_PLUGGED_AC != 0 -> "AC Fast Charger"
+                    plugged and BatteryManager.BATTERY_PLUGGED_USB != 0 -> "USB Host Power"
+                    plugged and BatteryManager.BATTERY_PLUGGED_WIRELESS != 0 -> "Wireless Qi"
+                    else -> "Battery Discharging"
+                }
+
+                val technology = intent.getStringExtra(BatteryManager.EXTRA_TECHNOLOGY)?.ifBlank { "Li-ion" } ?: "Li-ion"
+
+                val isCharging = status == ChargingStatus.CHARGING
+                val chargeSpeed = when {
+                    !isCharging -> "Discharging"
+                    wattage >= 15f -> "Rapid Turbo"
+                    wattage >= 8f -> "Fast Charge"
+                    wattage >= 2.5f -> "Standard USB"
+                    else -> "Trickle / Float"
+                }
+
                 trySend(
                     BatteryData(
                         percentage = percentage,
@@ -69,6 +99,10 @@ class StandardBatteryDataSource @Inject constructor(
                         status = status,
                         isChargeLimitActive = false,
                         isRootControlled = false,
+                        health = health,
+                        powerSource = powerSource,
+                        technology = technology,
+                        chargeSpeedCategory = chargeSpeed,
                         timestamp = System.currentTimeMillis()
                     )
                 )

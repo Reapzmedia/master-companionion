@@ -1,7 +1,13 @@
 package com.mastercompanion.ui.audio
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.res.Configuration
+import android.widget.Toast
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.animation.AnimatedVisibility
@@ -24,6 +30,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeMute
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.VolumeDown
@@ -52,6 +60,7 @@ import java.util.Locale
 @Composable
 fun AudioPage(
     streamState: AudioStreamState,
+    deviceIp: String = "",
     onVolumeChange: (Float) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -91,7 +100,7 @@ fun AudioPage(
                     }
                 )
 
-                AudioLaunchGuideCard()
+                AudioLaunchGuideCard(deviceIp = deviceIp)
 
                 Spacer(modifier = Modifier.height(24.dp))
             }
@@ -130,7 +139,7 @@ fun AudioPage(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    AudioLaunchGuideCard()
+                    AudioLaunchGuideCard(deviceIp = deviceIp)
                 }
             }
         }
@@ -328,39 +337,118 @@ private fun AudioVolumeCard(
 }
 
 @Composable
-private fun AudioLaunchGuideCard(modifier: Modifier = Modifier) {
+private fun AudioLaunchGuideCard(
+    deviceIp: String = "",
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    var copied by remember { androidx.compose.runtime.mutableStateOf(false) }
+
+    val resolvedIp = remember(deviceIp) {
+        if (deviceIp.isNotBlank() && deviceIp != "Unavailable" && deviceIp != "0.0.0.0" && deviceIp != "127.0.0.1") {
+            deviceIp
+        } else {
+            "192.168.1.X"
+        }
+    }
+    val commandText = "python pc/audio/audio_streamer.py --target-ip $resolvedIp"
+
     Box(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(Color(0xFF141720))
             .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(16.dp))
-            .padding(18.dp)
+            .padding(16.dp)
     ) {
         Column {
-            Text(
-                text = "PC STREAMING COMMAND",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.sp,
-                color = Color(0xFF38BDF8)
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "PC STREAMING COMMAND",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp,
+                    color = Color(0xFF38BDF8)
+                )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFF0F172A))
+                        .border(1.dp, Color(0xFF38BDF8).copy(alpha = 0.3f), RoundedCornerShape(10.dp))
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Wifi,
+                        contentDescription = null,
+                        tint = Color(0xFF38BDF8),
+                        modifier = Modifier.size(11.dp)
+                    )
+                    Text(
+                        text = resolvedIp,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        color = Color(0xFF38BDF8)
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "python pc/audio/audio_streamer.py --target-ip <PHONE_IP>",
-                fontSize = 12.sp,
-                fontFamily = FontFamily.Monospace,
-                color = Color.White.copy(alpha = 0.85f),
+
+            Row(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(Color(0xFF0F1117))
-                    .padding(8.dp)
                     .fillMaxWidth()
-            )
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFF0F1117))
+                    .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(8.dp))
+                    .clickable {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText("PC Streaming Command", commandText))
+                        copied = true
+                        Toast.makeText(context, "Streaming command copied to clipboard!", Toast.LENGTH_SHORT).show()
+                    }
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = commandText,
+                    fontSize = 11.5.sp,
+                    fontFamily = FontFamily.Monospace,
+                    color = Color.White.copy(alpha = 0.9f),
+                    modifier = Modifier.weight(1f)
+                )
+
+                IconButton(
+                    onClick = {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText("PC Streaming Command", commandText))
+                        copied = true
+                        Toast.makeText(context, "Streaming command copied to clipboard!", Toast.LENGTH_SHORT).show()
+                    },
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = if (copied) Icons.Filled.Check else Icons.Filled.ContentCopy,
+                        contentDescription = "Copy command",
+                        tint = if (copied) Color(0xFF10B981) else Color(0xFF38BDF8),
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
+
             Text(
-                text = "For USB: Run pc/scripts/setup_adb_reverse.bat first",
-                fontSize = 11.sp,
+                text = "Wi-Fi: Run above in Windows PowerShell • USB: Run setup_adb_reverse.bat with 127.0.0.1",
+                fontSize = 10.sp,
                 color = Color.White.copy(alpha = 0.45f)
             )
         }

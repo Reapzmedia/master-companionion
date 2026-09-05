@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.Edit
@@ -31,6 +32,7 @@ import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Power
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Thermostat
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -194,36 +196,6 @@ fun HomePage(
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        // Exit Fullscreen floating pill in top-right
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(if (whiteTheme) Color(0xFFE2E8F0).copy(alpha = 0.9f) else Color(0xFF1E212B).copy(alpha = 0.9f))
-                                .border(1.dp, cardBorder, RoundedCornerShape(20.dp))
-                                .clickable {
-                                    isFullscreenClock = false
-                                    onFullscreenChanged(false)
-                                    lastInteractionTime = System.currentTimeMillis()
-                                }
-                                .padding(horizontal = 14.dp, vertical = 7.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.FullscreenExit,
-                                contentDescription = "Exit Fullscreen",
-                                tint = textColor,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Text(
-                                text = "Exit Fullscreen",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = textColor
-                            )
-                        }
-
                         // Centered Clock Display enlarged
                         Box(
                             modifier = Modifier
@@ -577,6 +549,15 @@ private fun BatteryTelemetryCard(
     onToggleChargeLimit: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isBypassed = batteryData.isBypassed
+    val isCharging = batteryData.isCharging
+    val statusColor = when {
+        isBypassed -> Color(0xFFF59E0B)
+        isCharging -> Color(0xFF10B981)
+        batteryData.percentage <= 20 -> Color(0xFFEF4444)
+        else -> Color(0xFF38BDF8)
+    }
+
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -585,35 +566,79 @@ private fun BatteryTelemetryCard(
             .border(1.dp, cardBorder, RoundedCornerShape(20.dp))
             .padding(16.dp)
     ) {
-        Column {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            // Header: Hardware Title + Status Badge + Bypass Switch
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = if (batteryData.isBypassed) "AC POWER BYPASS" else if (batteryData.isCharging) "CHARGING" else "DISCHARGING",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.sp,
-                    color = textSubColor
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(statusColor.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (isBypassed) Icons.Filled.Shield else if (isCharging) Icons.Filled.BatteryChargingFull else Icons.Filled.Bolt,
+                            contentDescription = null,
+                            tint = statusColor,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
 
-                Switch(
-                    checked = batteryData.isBypassed,
-                    onCheckedChange = { onToggleChargeLimit() },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = Color(0xFFF59E0B),
-                        uncheckedThumbColor = Color.White.copy(alpha = 0.7f),
-                        uncheckedTrackColor = Color(0xFF262933)
+                    Column {
+                        Text(
+                            text = "BATTERY HARDWARE MONITOR",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp,
+                            color = textColor
+                        )
+                        Text(
+                            text = if (isBypassed) {
+                                "AC BYPASS (80% LIMIT ENGAGED)"
+                            } else if (isCharging) {
+                                "${batteryData.powerSource.uppercase()} • ${batteryData.chargeSpeedCategory.uppercase()}"
+                            } else {
+                                "DISCHARGING • HEALTH: ${batteryData.health.uppercase()}"
+                            },
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = statusColor
+                        )
+                    }
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = "80% Bypass",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (isBypassed) Color(0xFFF59E0B) else textSubColor
                     )
-                )
+                    Switch(
+                        checked = isBypassed,
+                        onCheckedChange = { onToggleChargeLimit() },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = Color(0xFFF59E0B),
+                            uncheckedThumbColor = Color.White.copy(alpha = 0.7f),
+                            uncheckedTrackColor = Color(0xFF262933)
+                        )
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Rotary Chronograph Charging Knob + Live Telemetry Grid
+            // Middle Section: Rotary Chronograph Knob + Detailed 2x2 Telemetry Grid
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -622,34 +647,94 @@ private fun BatteryTelemetryCard(
                 ChargingKnobGauge(
                     batteryData = batteryData,
                     whiteTheme = whiteTheme,
-                    size = 110.dp,
+                    size = 115.dp,
                     onToggleChargeLimit = onToggleChargeLimit
                 )
 
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    TelemetryMetric(
-                        label = "LIVE POWER",
-                        value = String.format(Locale.US, "%.1f W", kotlin.math.abs(batteryData.wattage)),
-                        icon = Icons.Filled.Bolt,
-                        tint = Color(0xFFFACC15),
-                        textColor = textColor
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        TelemetryMetric(
+                            label = "LIVE POWER",
+                            value = String.format(Locale.US, "%.1f W", kotlin.math.abs(batteryData.wattage)),
+                            icon = Icons.Filled.Bolt,
+                            tint = Color(0xFFFACC15),
+                            textColor = textColor,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TelemetryMetric(
+                            label = "CURRENT FLOW",
+                            value = "${if (batteryData.currentMa >= 0) "+" else ""}${batteryData.currentMa} mA",
+                            icon = Icons.Filled.Speed,
+                            tint = if (batteryData.currentMa >= 0) Color(0xFF10B981) else Color(0xFFF87171),
+                            textColor = textColor,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        TelemetryMetric(
+                            label = "VOLTAGE",
+                            value = String.format(Locale.US, "%.2f V", batteryData.voltageVolts),
+                            icon = Icons.Filled.Power,
+                            tint = Color(0xFF60A5FA),
+                            textColor = textColor,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TelemetryMetric(
+                            label = "TEMPERATURE",
+                            value = String.format(Locale.US, "%.1f°C / %.0f°F", batteryData.temperatureC, batteryData.temperatureF),
+                            icon = Icons.Filled.Thermostat,
+                            tint = if (batteryData.temperatureC > 38f) Color(0xFFEF4444) else Color(0xFF34D399),
+                            textColor = textColor,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+
+            // Bottom Diagnostics Strip
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (whiteTheme) Color(0xFFF1F5F9) else Color(0xFF12141C))
+                    .border(1.dp, if (whiteTheme) Color(0xFFE2E8F0) else Color.White.copy(alpha = 0.05f), RoundedCornerShape(10.dp))
+                    .padding(horizontal = 12.dp, vertical = 7.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (isBypassed) {
+                            "⚡ Motherboard Bypass: Battery wear eliminated at ${batteryData.percentage}%"
+                        } else if (isCharging) {
+                            "⚡ Source: ${batteryData.powerSource} • Health: ${batteryData.health} (${batteryData.technology})"
+                        } else {
+                            "🔋 Discharging on ${batteryData.technology} • Health: ${batteryData.health}"
+                        },
+                        fontSize = 10.5.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = textSubColor
                     )
-                    TelemetryMetric(
-                        label = "VOLTAGE",
-                        value = String.format(Locale.US, "%.2f V", batteryData.voltageVolts),
-                        icon = Icons.Filled.Power,
-                        tint = Color(0xFF60A5FA),
-                        textColor = textColor
-                    )
-                    TelemetryMetric(
-                        label = "BATTERY TEMP",
-                        value = String.format(Locale.US, "%.1f °C", batteryData.temperatureC),
-                        icon = Icons.Filled.Thermostat,
-                        tint = if (batteryData.temperatureC > 38f) Color(0xFFEF4444) else Color(0xFF34D399),
-                        textColor = textColor
+
+                    Text(
+                        text = if (batteryData.isRootControlled) "ROOT SYSFS" else "OS BATTERY API",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp,
+                        fontFamily = FontFamily.Monospace,
+                        color = if (batteryData.isRootControlled) Color(0xFF10B981) else Color(0xFF38BDF8)
                     )
                 }
             }
@@ -1088,9 +1173,13 @@ private fun TelemetryMetric(
     value: String,
     icon: ImageVector,
     tint: Color,
-    textColor: Color = Color.White
+    textColor: Color = Color.White,
+    modifier: Modifier = Modifier
 ) {
-    Column(horizontalAlignment = Alignment.Start) {
+    Column(
+        horizontalAlignment = Alignment.Start,
+        modifier = modifier
+    ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -1109,10 +1198,10 @@ private fun TelemetryMetric(
                 color = textColor.copy(alpha = 0.45f)
             )
         }
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(3.dp))
         Text(
             text = value,
-            fontSize = 15.sp,
+            fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
             color = textColor
         )

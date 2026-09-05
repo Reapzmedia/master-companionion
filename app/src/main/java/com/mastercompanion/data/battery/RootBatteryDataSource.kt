@@ -115,6 +115,38 @@ class RootBatteryDataSource @Inject constructor(
             }
             val tempCelsius = rawTemp ?: getFallbackTemperatureC(batteryIntent)
 
+            val healthRaw = batteryIntent?.getIntExtra(BatteryManager.EXTRA_HEALTH, BatteryManager.BATTERY_HEALTH_UNKNOWN) ?: BatteryManager.BATTERY_HEALTH_UNKNOWN
+            val health = when (healthRaw) {
+                BatteryManager.BATTERY_HEALTH_GOOD -> "Good"
+                BatteryManager.BATTERY_HEALTH_OVERHEAT -> "Overheat"
+                BatteryManager.BATTERY_HEALTH_DEAD -> "Dead"
+                BatteryManager.BATTERY_HEALTH_OVER_VOLTAGE -> "Over Voltage"
+                BatteryManager.BATTERY_HEALTH_UNSPECIFIED_FAILURE -> "Failure"
+                BatteryManager.BATTERY_HEALTH_COLD -> "Cold"
+                else -> "Normal"
+            }
+
+            val plugged = batteryIntent?.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) ?: 0
+            val powerSource = when {
+                isChargeLimitEngaged -> "AC Motherboard Bypass"
+                plugged and BatteryManager.BATTERY_PLUGGED_AC != 0 -> "AC Fast Charger"
+                plugged and BatteryManager.BATTERY_PLUGGED_USB != 0 -> "USB Host Power"
+                plugged and BatteryManager.BATTERY_PLUGGED_WIRELESS != 0 -> "Wireless Qi"
+                else -> "Battery Discharging"
+            }
+
+            val technology = batteryIntent?.getStringExtra(BatteryManager.EXTRA_TECHNOLOGY)?.ifBlank { "Li-ion" } ?: "Li-ion"
+
+            val isCharging = status == ChargingStatus.CHARGING
+            val chargeSpeed = when {
+                isChargeLimitEngaged -> "Bypass Idle"
+                !isCharging -> "Discharging"
+                wattage >= 15f -> "Rapid Turbo"
+                wattage >= 8f -> "Fast Charge"
+                wattage >= 2.5f -> "Standard USB"
+                else -> "Trickle / Float"
+            }
+
             emit(
                 BatteryData(
                     percentage = percentage,
@@ -125,6 +157,10 @@ class RootBatteryDataSource @Inject constructor(
                     status = status,
                     isChargeLimitActive = isChargeLimitEngaged,
                     isRootControlled = true,
+                    health = health,
+                    powerSource = powerSource,
+                    technology = technology,
+                    chargeSpeedCategory = chargeSpeed,
                     timestamp = System.currentTimeMillis()
                 )
             )

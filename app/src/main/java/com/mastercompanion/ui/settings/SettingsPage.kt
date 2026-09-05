@@ -491,7 +491,9 @@ fun SettingsPage(
             // LANDSCAPE (2-COLUMN) LAYOUT
             // ═══════════════════════════════════════════════════════════════
             Column(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Header Title & Legal Button
@@ -531,44 +533,40 @@ fun SettingsPage(
                             }
                         }
 
-                        Text(
-                            text = "Desk Preferences & Toggles",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = textPrimary
-                        )
+                        Column {
+                            Text(
+                                text = "Desk Preferences & Toggles",
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = textPrimary
+                            )
+                            Text(
+                                text = "Tap any category to expand details",
+                                fontSize = 11.sp,
+                                color = textSecondary
+                            )
+                        }
                     }
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (whiteTheme) Color(0xFFF1F5F9) else Color(0xFF1E222D))
+                            .border(1.dp, cardBorder, RoundedCornerShape(10.dp))
+                            .clickable { showLegalDialog = true }
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (whiteTheme) Color(0xFFF1F5F9) else Color(0xFF1E222D))
-                                .border(1.dp, cardBorder, RoundedCornerShape(10.dp))
-                                .clickable { showLegalDialog = true }
-                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(Icons.Filled.Policy, contentDescription = null, tint = Color(0xFF8B5CF6), modifier = Modifier.size(15.dp))
-                                Text("Legal, EULA & Privacy", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = textPrimary)
-                            }
+                            Icon(Icons.Filled.Policy, contentDescription = null, tint = Color(0xFF8B5CF6), modifier = Modifier.size(15.dp))
+                            Text("Legal, EULA & Privacy", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = textPrimary)
                         }
-
-                        Text(
-                            text = "Tap any category to expand details",
-                            fontSize = 11.sp,
-                            color = textSecondary
-                        )
                     }
                 }
 
-                // Master Quick-Toggles Bar
+                // Master Quick-Toggles Bar (moves up with page scroll)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -650,19 +648,14 @@ fun SettingsPage(
                     )
                 }
 
-                // 2-Column Split Drawers
+                // 2-Column Split Drawers (Unified with full-page scroll)
                 Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .weight(1f),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
                     // ── LEFT COLUMN ──
                     Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .verticalScroll(rememberScrollState()),
+                        modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         AppUpdatesDrawer(
@@ -727,10 +720,7 @@ fun SettingsPage(
 
                     // ── RIGHT COLUMN ──
                     Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .verticalScroll(rememberScrollState()),
+                        modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         BatteryDrawer(
@@ -814,6 +804,8 @@ fun SettingsPage(
                         )
                     }
                 }
+
+                Spacer(modifier = Modifier.height(56.dp))
             }
         }
     }

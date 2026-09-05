@@ -26,8 +26,14 @@ data class BatteryData(
     val voltageMv: Int = (voltageVolts * 1000).toInt(),
     val currentMa: Int = (currentAmperes * 1000).toInt(),
     val temperatureC: Float = temperatureCelsius,
+    val health: String = "Good",
+    val powerSource: String = "AC Power",
+    val technology: String = "Li-ion",
+    val chargeSpeedCategory: String = "Normal",
     val timestamp: Long = System.currentTimeMillis()
 ) {
     val isCharging: Boolean get() = status == ChargingStatus.CHARGING
+    val temperatureF: Float get() = (temperatureCelsius * 9f / 5f) + 32f
+    val isPlugged: Boolean get() = status == ChargingStatus.CHARGING || status == ChargingStatus.IDLE || isBypassed
 }
 
