@@ -1,16 +1,18 @@
-# ⚡ Master Companion v1.0.2 — Autonomous Self-Installer & Full-Size Clock
+# ⚡ Master Companion v1.0.3 — Landscape Standby Perfection & Autonomous OTA
 
-### 🌟 What's New in v1.0.2
-- **🛡️ Autonomous Self-Installing & Auto-Restart Updater**:
-  - **Self-Install & Auto-Restart**: The application now seamlessly installs update packages directly and automatically relaunches via `ACTION_MY_PACKAGE_REPLACED` upon completion.
-  - **Enterprise-Grade Cryptographic Security**: Before any installation, the APK is strictly verified for valid archive structure, exact package identity (`com.mastercompanion`), anti-downgrade progression, and cryptographic certificate matching against the active running application.
-  - **Silent Root Staging (`su`)**: On rooted hardware (such as docked Pixel 7 Pro), automatically stages the package to `/data/local/tmp`, executes `pm install -r -d` with zero prompts, and relaunches `MainActivity`.
-  - **Native PackageInstaller Session**: On non-root hardware, directly executes a PackageInstaller session without third-party file manager or FileProvider friction.
-- **🕒 Full-Size Landscape Clock & Pop-in Widgets Drawer**:
-  - **Unconstrained Clock Display**: In horizontal mode, the Hero Clock now expands to the full screen with uncrowded, spacious typography.
-  - **Pop-in Minimalist Sidebar**: The Calendar and Hardware Battery telemetry cards now tuck into a clean, smooth slide-in drawer toggled via the `WIDGETS` pill button in the top right.
-  - **Unsquished Quick Actions**: Bottom quick action controls (Wake-on-LAN, Calendar, Fullscreen) now have generous breathing room without crowding the display.
+### 🌟 What's New in v1.0.3
+- **🕒 Full-Size Landscape Clock with Slide-Over Pop-In Drawer**:
+  - **100% Full Canvas Clock**: In horizontal standby mode, the Hero Clock now occupies the full display width and height without being cut in half by side widgets.
+  - **Minimalist Widgets Button**: Top-right corner features a sleek, compact status pill (`[Dot] WIDGETS • [Level]% • [Power]`) with real-time status color coding (green = charging, amber = 80% bypass, cyan = standard, red = low).
+  - **Non-Squishing Overlay Drawer**: Tapping the widgets pill slides in the Calendar Agenda and Battery Hardware Telemetry card as a smooth modal drawer over the right side with a dimming backdrop. The clock and quick action buttons underneath are never squished or resized.
+  - **Tap-to-Dismiss**: Easily dismiss the widgets drawer by tapping the backdrop or the `✕` close button.
+- **✨ Clean Quick Action Controls**:
+  - Removed the confusing fullscreen toggle button from the clock's quick actions bar, giving Wake PC and Calendar controls generous breathing room without crowding.
+- **🛡️ Autonomous Self-Installing & Auto-Restart OTA Engine**:
+  - **Cryptographic Security Verification**: Checks APK integrity, exact package name (`com.mastercompanion`), anti-downgrade version check, and signature matching against the running app.
+  - **Zero-Friction Self-Installation**: Automatically stages and installs via root (`su` -> `pm install -r -d`) or native `PackageInstaller` session.
+  - **Auto-Restart**: Seamlessly restarts the app immediately upon update via `ACTION_MY_PACKAGE_REPLACED`.
 
 ### 📦 Installation & OTA
 - **Direct Download**: Download `app-release.apk` below and install directly onto your device.
-- **OTA Auto-Updater**: If already running v1.0.0 or v1.0.1, navigate to Settings > Check for Updates to automatically download, verify, install, and restart into v1.0.2!
+- **OTA Auto-Updater**: If already running v1.0.2, simply open the app, go to Settings, and tap Check for Updates to test the end-to-end auto-download, cryptographic verification, silent install, and auto-restart into v1.0.3!

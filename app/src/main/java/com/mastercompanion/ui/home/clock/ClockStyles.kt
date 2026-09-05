@@ -78,7 +78,7 @@ fun ClockStyleHost(
     use24Hour: Boolean = true,
     modifier: Modifier = Modifier
 ) {
-    Box(modifier = modifier, contentAlignment = Alignment.CenterStart) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
         when (style) {
             ClockStyle.MINIMALIST -> MinimalistDigitalClock(currentTime, batteryData, whiteTheme, use24Hour)
             ClockStyle.ANALOG_GAUGE -> AnalogPrecisionGaugeClock(currentTime, batteryData, whiteTheme, use24Hour)

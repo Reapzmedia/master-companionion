@@ -22,8 +22,8 @@ def main():
         sys.exit(1)
 
     repo = "Reapzmedia/master-companionion"
-    tag = "v1.0.1"
-    name = "Master Companion v1.0.1 - Hotfix & Telemetry"
+    tag = sys.argv[1] if len(sys.argv) > 1 else "v1.0.3"
+    name = sys.argv[2] if len(sys.argv) > 2 else f"Master Companion {tag} - Landscape Standby Perfection & Autonomous OTA"
 
     notes_file = os.path.join(os.path.dirname(__file__), "..", "..", "RELEASE_NOTES.md")
     body = "Release " + tag

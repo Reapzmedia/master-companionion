@@ -271,7 +271,6 @@ fun HomePage(
                         QuickActionsRow(
                             pcMac = pcMac,
                             calendarEnabled = calendarEnabled,
-                            isFullscreenClock = isFullscreenClock,
                             whiteTheme = whiteTheme,
                             cardBorder = cardBorder,
                             textColor = textColor,
@@ -285,12 +284,7 @@ fun HomePage(
                                 }
                             },
                             onEditPc = { showWolDialog = true },
-                            onToggleCalendar = onToggleCalendar,
-                            onToggleFullscreen = {
-                                lastInteractionTime = System.currentTimeMillis()
-                                isFullscreenClock = !isFullscreenClock
-                                onFullscreenChanged(isFullscreenClock)
-                            }
+                            onToggleCalendar = onToggleCalendar
                         )
 
                         // Google Calendar Agenda Widget
@@ -327,21 +321,22 @@ fun HomePage(
                         Spacer(modifier = Modifier.height(24.dp))
                     }
                 } else {
-                    // ═══ LANDSCAPE FULL-SIZE CLOCK + POP-IN WIDGETS VIEW ═══
-                    Row(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalArrangement = Arrangement.spacedBy(24.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Main Left/Center Column: Expansive Hero Clock + Controls
+                    // ═══ LANDSCAPE FULL-SIZE CLOCK + POP-IN WIDGETS OVERLAY ═══
+                    val batteryStatusColor = when {
+                        batteryData.isBypassed -> Color(0xFFF59E0B)
+                        batteryData.isCharging -> Color(0xFF10B981)
+                        batteryData.percentage <= 20 -> Color(0xFFEF4444)
+                        else -> Color(0xFF38BDF8)
+                    }
+
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        // 1. Full-Canvas Base: Majestic Clock & Action Bars (Takes 100% space)
                         Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight(),
+                            modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.SpaceBetween,
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            // Top Bar: Clock Style Switcher on Left, Widgets Pop-in Button on Right
+                            // Top Bar: Clock Style Switcher on Left, Minimalist Widgets Button on Right
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -376,7 +371,7 @@ fun HomePage(
                                     )
                                 }
 
-                                // Pop-in Widgets & Telemetry Button
+                                // Minimalist Pop-in Widgets & Telemetry Button
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -397,11 +392,17 @@ fun HomePage(
                                         }
                                         .padding(horizontal = 14.dp, vertical = 6.dp)
                                 ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(7.dp)
+                                            .clip(CircleShape)
+                                            .background(batteryStatusColor)
+                                    )
                                     Icon(
-                                        imageVector = if (showSideWidgets) Icons.Filled.ChevronRight else Icons.Filled.Widgets,
+                                        imageVector = if (showSideWidgets) Icons.Filled.Close else Icons.Filled.Widgets,
                                         contentDescription = "Toggle Dashboard Widgets",
                                         tint = if (showSideWidgets) Color(0xFF38BDF8) else textSubColor,
-                                        modifier = Modifier.size(15.dp)
+                                        modifier = Modifier.size(14.dp)
                                     )
                                     Text(
                                         text = if (showSideWidgets) "HIDE WIDGETS" else "WIDGETS • ${batteryData.level}% • ${batteryData.formattedPower}",
@@ -433,7 +434,6 @@ fun HomePage(
                             QuickActionsRow(
                                 pcMac = pcMac,
                                 calendarEnabled = calendarEnabled,
-                                isFullscreenClock = isFullscreenClock,
                                 whiteTheme = whiteTheme,
                                 cardBorder = cardBorder,
                                 textColor = textColor,
@@ -447,31 +447,46 @@ fun HomePage(
                                     }
                                 },
                                 onEditPc = { showWolDialog = true },
-                                onToggleCalendar = onToggleCalendar,
-                                onToggleFullscreen = {
-                                    lastInteractionTime = System.currentTimeMillis()
-                                    isFullscreenClock = !isFullscreenClock
-                                    onFullscreenChanged(isFullscreenClock)
-                                }
+                                onToggleCalendar = onToggleCalendar
                             )
                         }
 
-                        // Right Column: Pop-in Minimalist Sliding Widgets Drawer
+                        // 2. Dim Scrim Backdrop when Widgets Overlay is open
                         AnimatedVisibility(
                             visible = showSideWidgets,
-                            enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(),
-                            exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut()
+                            enter = fadeIn(animationSpec = tween(250)),
+                            exit = fadeOut(animationSpec = tween(200))
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color.Black.copy(alpha = 0.55f))
+                                    .clickable(
+                                        indication = null,
+                                        interactionSource = remember { MutableInteractionSource() }
+                                    ) {
+                                        showSideWidgets = false
+                                    }
+                            )
+                        }
+
+                        // 3. Pop-in Minimalist Sliding Widgets Drawer
+                        AnimatedVisibility(
+                            visible = showSideWidgets,
+                            modifier = Modifier.align(Alignment.CenterEnd),
+                            enter = slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(300)) + fadeIn(),
+                            exit = slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(250)) + fadeOut()
                         ) {
                             Column(
                                 modifier = Modifier
-                                    .width(380.dp)
+                                    .width(360.dp)
                                     .fillMaxHeight()
                                     .clip(RoundedCornerShape(24.dp))
                                     .background(if (whiteTheme) Color(0xFFF1F5F9) else Color(0xFF13151D))
                                     .border(1.dp, cardBorder, RoundedCornerShape(24.dp))
-                                    .padding(14.dp)
+                                    .padding(16.dp)
                                     .verticalScroll(rememberScrollState()),
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(14.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 // Drawer Header with Close Button
@@ -540,7 +555,7 @@ fun HomePage(
                                     onToggleChargeLimit = onToggleChargeLimit
                                 )
 
-                                Spacer(modifier = Modifier.height(24.dp))
+                                Spacer(modifier = Modifier.height(16.dp))
                             }
                         }
                     }
@@ -855,13 +870,12 @@ private fun BatteryTelemetryCard(
 }
 
 /**
- * Reusable Quick Actions Row for Wake-on-LAN, Calendar, and Fullscreen toggle.
+ * Reusable Quick Actions Row for Wake-on-LAN and Calendar toggle.
  */
 @Composable
 private fun QuickActionsRow(
     pcMac: String,
     calendarEnabled: Boolean,
-    isFullscreenClock: Boolean,
     whiteTheme: Boolean,
     cardBorder: Color,
     textColor: Color,
@@ -869,7 +883,6 @@ private fun QuickActionsRow(
     onWakePc: () -> Unit,
     onEditPc: () -> Unit,
     onToggleCalendar: (Boolean) -> Unit,
-    onToggleFullscreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -939,30 +952,6 @@ private fun QuickActionsRow(
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = if (calendarEnabled) (if (whiteTheme) Color(0xFF0369A1) else Color(0xFF38BDF8)) else textSubColor
-            )
-        }
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            modifier = Modifier
-                .clip(RoundedCornerShape(12.dp))
-                .background(if (isFullscreenClock) (if (whiteTheme) Color(0xFFE0F2FE) else Color(0xFF0C2A40)) else (if (whiteTheme) Color(0xFFEDF2F7) else Color(0xFF1E212B)))
-                .border(1.dp, if (isFullscreenClock) Color(0xFF38BDF8).copy(alpha = 0.5f) else cardBorder, RoundedCornerShape(12.dp))
-                .clickable { onToggleFullscreen() }
-                .padding(horizontal = 12.dp, vertical = 9.dp)
-        ) {
-            Icon(
-                imageVector = if (isFullscreenClock) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen,
-                contentDescription = "Toggle Fullscreen Clock",
-                tint = if (isFullscreenClock) Color(0xFF38BDF8) else textSubColor,
-                modifier = Modifier.size(15.dp)
-            )
-            Text(
-                text = if (isFullscreenClock) "Full" else "Clock",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = if (isFullscreenClock) (if (whiteTheme) Color(0xFF0369A1) else Color(0xFF38BDF8)) else textSubColor
             )
         }
     }
