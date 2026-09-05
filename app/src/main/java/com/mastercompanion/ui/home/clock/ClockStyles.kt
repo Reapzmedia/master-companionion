@@ -140,7 +140,7 @@ fun MinimalistDigitalClock(
             )
             Text(
                 text = if (batteryData.isBypassed) "AC BYPASS ACTIVE • ${batteryData.level}%"
-                else if (batteryData.isCharging) "DOCK CHARGING • ${batteryData.level}% • ${String.format(Locale.US, "%.1fW", kotlin.math.abs(batteryData.wattage))}"
+                else if (batteryData.isCharging) "DOCK CHARGING • ${batteryData.level}% • ${batteryData.formattedPower}"
                 else "BATTERY • ${batteryData.level}%",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
@@ -349,7 +349,7 @@ fun AnalogPrecisionGaugeClock(
             )
             Text(
                 text = if (batteryData.isBypassed) "CHRONO GAUGED • ${batteryData.level}% • BYPASS"
-                else "CHRONO GAUGED • ${batteryData.level}% • ${String.format(Locale.US, "%.1fW", kotlin.math.abs(batteryData.wattage))}",
+                else "CHRONO GAUGED • ${batteryData.level}% • ${batteryData.formattedPower}",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
                 letterSpacing = 1.5.sp,
@@ -390,7 +390,7 @@ fun RetroSplitFlapClock(
                 color = if (whiteTheme) Color(0xFF6B7280) else Color(0xFF94A3B8)
             )
             Text(
-                text = "BAT: ${batteryData.level}% • ${String.format(Locale.getDefault(), "%.1fW", batteryData.wattage)}",
+                text = "BAT: ${batteryData.level}% • ${batteryData.formattedPower}",
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 1.sp,

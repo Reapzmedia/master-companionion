@@ -93,6 +93,8 @@ class SpotifyRepository @Inject constructor(
                             val artistName = item.artists.joinToString(", ") { it.name }
                             val year = item.album?.releaseDate?.take(4) ?: ""
 
+                            val (contextName, resolvedContextType) = resolveContext(body.context, item, bearerToken)
+
                             _currentTrack.value = SpotifyTrack(
                                 id = item.id,
                                 title = item.name,
@@ -103,6 +105,8 @@ class SpotifyRepository @Inject constructor(
                                 progressMs = body.progressMs,
                                 isPlaying = body.isPlaying,
                                 isRecentFallback = false,
+                                playlistContext = contextName,
+                                contextType = resolvedContextType,
                                 releaseYear = year,
                                 timestamp = System.currentTimeMillis()
                             )
@@ -134,6 +138,67 @@ class SpotifyRepository @Inject constructor(
         }
     }
 
+    private val playlistNameCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    private suspend fun resolveContext(
+        contextDto: com.mastercompanion.data.spotify.dto.SpotifyContextDto?,
+        item: com.mastercompanion.data.spotify.dto.TrackDto,
+        bearerToken: String
+    ): Pair<String, String> {
+        if (contextDto == null) {
+            return Pair("Liked Songs", "collection")
+        }
+
+        val type = contextDto.type.lowercase().trim()
+        val uri = contextDto.uri.trim()
+
+        return when {
+            type == "album" -> {
+                val albumName = item.album?.name?.ifBlank { "Album" } ?: "Album"
+                Pair(albumName, "album")
+            }
+            type == "artist" -> {
+                val artistName = item.artists.firstOrNull()?.name?.ifBlank { "Artist" } ?: "Artist"
+                Pair(artistName, "artist")
+            }
+            type == "collection" || uri.contains(":collection") || (uri.contains(":user:") && uri.endsWith(":collection")) -> {
+                Pair("Liked Songs", "collection")
+            }
+            type == "show" || type == "episode" -> {
+                val showName = item.album?.name?.ifBlank { "Podcast" } ?: "Podcast"
+                Pair(showName, type)
+            }
+            type == "playlist" || uri.contains(":playlist:") -> {
+                val playlistId = uri.substringAfterLast(":").substringBefore("?")
+                if (playlistId.isNotBlank()) {
+                    val cached = playlistNameCache[playlistId]
+                    if (!cached.isNullOrBlank()) {
+                        Pair(cached, "playlist")
+                    } else {
+                        val fetched = try {
+                            val resp = spotifyApi.getPlaylist(bearerToken, playlistId)
+                            if (resp.isSuccessful && !resp.body()?.name.isNullOrBlank()) {
+                                val name = resp.body()!!.name
+                                playlistNameCache[playlistId] = name
+                                name
+                            } else null
+                        } catch (e: Exception) {
+                            Timber.d("Failed to resolve playlist name for $playlistId: ${e.message}")
+                            null
+                        }
+                        Pair(fetched ?: playlistNameCache[playlistId] ?: "Playlist", "playlist")
+                    }
+                } else {
+                    Pair("Playlist", "playlist")
+                }
+            }
+            else -> {
+                val fallback = item.album?.name?.ifBlank { "Liked Songs" } ?: "Liked Songs"
+                Pair(fallback, if (type.isNotBlank()) type else "playlist")
+            }
+        }
+    }
+
     private suspend fun fetchRecentlyPlayed(bearerToken: String) {
         try {
             val recentResp = spotifyApi.getRecentlyPlayed(bearerToken, limit = 1)
@@ -142,6 +207,8 @@ class SpotifyRepository @Inject constructor(
                 val artUrl = item.album?.images?.firstOrNull()?.url
                 val artistName = item.artists.joinToString(", ") { it.name }
                 val year = item.album?.releaseDate?.take(4) ?: ""
+                val contextName = item.album?.name?.ifBlank { "Liked Songs" } ?: "Liked Songs"
+                val resolvedContextType = if (item.album?.name.isNullOrBlank()) "playlist" else "album"
 
                 _currentTrack.value = SpotifyTrack(
                     id = item.id,
@@ -153,6 +220,8 @@ class SpotifyRepository @Inject constructor(
                     progressMs = 0L,
                     isPlaying = false,
                     isRecentFallback = true,
+                    playlistContext = contextName,
+                    contextType = resolvedContextType,
                     releaseYear = year
                 )
             } else {

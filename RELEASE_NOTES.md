@@ -1,19 +1,12 @@
-# ⚡ Master Companion v1.0.0 — Stable Release
+# ⚡ Master Companion v1.0.1 — Hotfix & Telemetry Release
 
-Transform any rooted Android device into a permanent smart desk dashboard, hardware telemetry monitor, Spotify Car View player with karaoke synced lyrics, and low-latency PC companion bridge.
+### 🌟 What's New in v1.0.1
+- **🎵 Dynamic Spotify Context Header**: Fixed persistent "Liked Songs" display — accurately resolves and displays real playlist names, album titles (`PLAYING FROM ALBUM`), artist radio (`PLAYING FROM ARTIST`), and podcasts across Car View and Lyrics views.
+- **🔋 High-Precision Milliamps (< 1W)**: When standby power draw or trickle charge drops below 1.0 Watt, telemetry seamlessly switches from `0.0 W` to high-resolution milliamps (e.g. `+140 mA` or `250 mA`) across all gauges, clocks, and battery cards.
+- **🕒 Clock Fullscreen Polish**: Removed intrusive floating "Exit Fullscreen" pill from the Minimalist Digital Clock — clean tap-to-exit gesture.
+- **🎧 PC Passthrough Auto-IP**: Auto-detects device Wi-Fi IP address directly in the PC audio passthrough command with 1-tap copy.
+- **🛡️ Enhanced Hardware Battery Telemetry**: Complete live diagnostics card featuring signed current ($mA$), voltage ($V$), dual-unit thermals ($°C$/$°F$), battery health status, and motherboard AC bypass indicators.
 
-### 🌟 Key Highlights & Features
-- **🕒 5 Standby Clock Styles**: Minimalist Digital, Analog Precision Gauge, Retro Split-Flap, Cyberpunk Terminal, Word Matrix.
-- **🎵 Fullscreen Spotify Player**: 5 Layouts (Car View, Spinning Vinyl Turntable, Progressive Blur Karaoke Lyrics, Minimal Standby Clock, Full-Bleed Artwork).
-- **🎼 Multi-Source Synced Lyrics**: LRCLIB primary + Lyrics.ovh fallback with instant memory caching.
-- **🔋 Root Battery Guard**: Hardware sysfs power bypass with 80% charging threshold and live wattage telemetry.
-- **📅 Google Calendar Sync**: Built-in upcoming agenda widget.
-- **🌐 Web Remote Control Dashboard**: Glassmorphic web UI on port `:8060` with real-time SSE telemetry.
-- **🎧 Low-Latency PC Audio Passthrough**: 48kHz stereo WASAPI loopback receiver on UDP port `:8421`.
-- **⌨️ Physical Macro-Pad Bridge**: AutoHotkey v2 script with rotary volume knob sync.
-
-### 📦 Installation
-Download **app-release.apk** below and install directly onto your device:
-```powershell
-adb install -r app-release.apk
-```
+### 📦 Installation & OTA
+- **Direct Download**: Download `app-release.apk` below and install via ADB or direct package installer.
+- **OTA Auto-Updater**: If already running v1.0.0, open Settings > Check for Updates to automatically download and install this release over the air.

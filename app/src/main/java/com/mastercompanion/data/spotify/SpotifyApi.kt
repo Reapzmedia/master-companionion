@@ -3,6 +3,7 @@ package com.mastercompanion.data.spotify
 import com.mastercompanion.data.spotify.dto.CurrentlyPlayingResponse
 import com.mastercompanion.data.spotify.dto.PlaybackStateResponse
 import com.mastercompanion.data.spotify.dto.RecentlyPlayedResponse
+import com.mastercompanion.data.spotify.dto.SpotifyPlaylistSimpleDto
 import com.mastercompanion.data.spotify.dto.SpotifyTokenResponse
 import kotlinx.serialization.Serializable
 import okhttp3.ResponseBody
@@ -15,6 +16,7 @@ import retrofit2.http.HTTP
 import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.PUT
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 @Serializable
@@ -25,6 +27,12 @@ data class SpotifyTrackIdsBody(
 @Serializable
 data class SpotifyUrisBody(
     val uris: List<String>
+)
+
+@Serializable
+data class SpotifyLibraryCheck(
+    val id: String,
+    val in_library: Boolean
 )
 
 interface SpotifyApi {
@@ -38,6 +46,13 @@ interface SpotifyApi {
     suspend fun getCurrentlyPlaying(
         @Header("Authorization") bearerToken: String
     ): Response<CurrentlyPlayingResponse>
+
+    @GET("v1/playlists/{playlist_id}")
+    suspend fun getPlaylist(
+        @Header("Authorization") bearerToken: String,
+        @Path("playlist_id") playlistId: String,
+        @Query("fields") fields: String = "name"
+    ): Response<SpotifyPlaylistSimpleDto>
 
     @GET("v1/me/player/recently-played")
     suspend fun getRecentlyPlayed(

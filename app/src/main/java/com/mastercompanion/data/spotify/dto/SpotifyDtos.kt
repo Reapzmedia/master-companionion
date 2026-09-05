@@ -13,7 +13,20 @@ data class SpotifyTokenResponse(
 )
 
 @Serializable
+data class SpotifyContextDto(
+    @SerialName("type") val type: String = "",
+    @SerialName("href") val href: String = "",
+    @SerialName("uri") val uri: String = ""
+)
+
+@Serializable
+data class SpotifyPlaylistSimpleDto(
+    @SerialName("name") val name: String = ""
+)
+
+@Serializable
 data class CurrentlyPlayingResponse(
+    @SerialName("context") val context: SpotifyContextDto? = null,
     @SerialName("is_playing") val isPlaying: Boolean = false,
     @SerialName("progress_ms") val progressMs: Long = 0L,
     @SerialName("item") val item: TrackDto? = null
@@ -24,6 +37,7 @@ data class PlaybackStateResponse(
     @SerialName("device") val device: SpotifyDeviceDto? = null,
     @SerialName("repeat_state") val repeatState: String? = null,
     @SerialName("shuffle_state") val shuffleState: Boolean? = null,
+    @SerialName("context") val context: SpotifyContextDto? = null,
     @SerialName("is_playing") val isPlaying: Boolean = false,
     @SerialName("progress_ms") val progressMs: Long = 0L,
     @SerialName("item") val item: TrackDto? = null

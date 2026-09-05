@@ -361,7 +361,7 @@ fun HomePage(
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(14.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
 
                             ClockStyleHost(
                                 style = currentStyle,
@@ -371,7 +371,7 @@ fun HomePage(
                                 use24Hour = use24Hour
                             )
 
-                            Spacer(modifier = Modifier.height(24.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
 
                             QuickActionsRow(
                                 pcMac = pcMac,
@@ -403,8 +403,9 @@ fun HomePage(
                         Column(
                             modifier = Modifier
                                 .weight(0.95f)
-                                .fillMaxHeight(),
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                                .fillMaxHeight()
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             GoogleCalendarWidget(
@@ -435,6 +436,8 @@ fun HomePage(
                                 textSubColor = textSubColor,
                                 onToggleChargeLimit = onToggleChargeLimit
                             )
+
+                            Spacer(modifier = Modifier.height(48.dp))
                         }
                     }
                 }
@@ -564,9 +567,9 @@ private fun BatteryTelemetryCard(
             .clip(RoundedCornerShape(20.dp))
             .background(cardBg)
             .border(1.dp, cardBorder, RoundedCornerShape(20.dp))
-            .padding(16.dp)
+            .padding(14.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             // Header: Hardware Title + Status Badge + Bypass Switch
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -575,11 +578,12 @@ private fun BatteryTelemetryCard(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.weight(1f, fill = false)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(28.dp)
+                            .size(26.dp)
                             .clip(CircleShape)
                             .background(statusColor.copy(alpha = 0.15f)),
                         contentAlignment = Alignment.Center
@@ -588,17 +592,18 @@ private fun BatteryTelemetryCard(
                             imageVector = if (isBypassed) Icons.Filled.Shield else if (isCharging) Icons.Filled.BatteryChargingFull else Icons.Filled.Bolt,
                             contentDescription = null,
                             tint = statusColor,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(15.dp)
                         )
                     }
 
                     Column {
                         Text(
                             text = "BATTERY HARDWARE MONITOR",
-                            fontSize = 11.sp,
+                            fontSize = 10.5.sp,
                             fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp,
-                            color = textColor
+                            letterSpacing = 0.8.sp,
+                            color = textColor,
+                            maxLines = 1
                         )
                         Text(
                             text = if (isBypassed) {
@@ -608,26 +613,29 @@ private fun BatteryTelemetryCard(
                             } else {
                                 "DISCHARGING • HEALTH: ${batteryData.health.uppercase()}"
                             },
-                            fontSize = 10.sp,
+                            fontSize = 9.5.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = statusColor
+                            color = statusColor,
+                            maxLines = 1
                         )
                     }
                 }
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     Text(
-                        text = "80% Bypass",
-                        fontSize = 11.sp,
+                        text = "80% Limit",
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.Medium,
-                        color = if (isBypassed) Color(0xFFF59E0B) else textSubColor
+                        color = if (isBypassed) Color(0xFFF59E0B) else textSubColor,
+                        maxLines = 1
                     )
                     Switch(
                         checked = isBypassed,
                         onCheckedChange = { onToggleChargeLimit() },
+                        modifier = Modifier.graphicsLayer(scaleX = 0.75f, scaleY = 0.75f),
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
                             checkedTrackColor = Color(0xFFF59E0B),
@@ -642,12 +650,12 @@ private fun BatteryTelemetryCard(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 ChargingKnobGauge(
                     batteryData = batteryData,
                     whiteTheme = whiteTheme,
-                    size = 115.dp,
+                    size = 96.dp,
                     onToggleChargeLimit = onToggleChargeLimit
                 )
 
@@ -661,7 +669,7 @@ private fun BatteryTelemetryCard(
                     ) {
                         TelemetryMetric(
                             label = "LIVE POWER",
-                            value = String.format(Locale.US, "%.1f W", kotlin.math.abs(batteryData.wattage)),
+                            value = batteryData.formattedPower,
                             icon = Icons.Filled.Bolt,
                             tint = Color(0xFFFACC15),
                             textColor = textColor,

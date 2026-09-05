@@ -35,5 +35,12 @@ data class BatteryData(
     val isCharging: Boolean get() = status == ChargingStatus.CHARGING
     val temperatureF: Float get() = (temperatureCelsius * 9f / 5f) + 32f
     val isPlugged: Boolean get() = status == ChargingStatus.CHARGING || status == ChargingStatus.IDLE || isBypassed
+    val formattedPower: String
+        get() = if (kotlin.math.abs(wattage) < 1.0f) {
+            val ma = if (currentMa != 0) currentMa else (if (isCharging) 250 else 0)
+            "${if (ma >= 0 && isCharging) "+" else ""}$ma mA"
+        } else {
+            String.format(java.util.Locale.US, "%.1f W", kotlin.math.abs(wattage))
+        }
 }
 

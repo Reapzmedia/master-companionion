@@ -181,7 +181,7 @@ fun ChargingKnobGauge(
                 val wattageDisplay = if (batteryData.isBypassed) {
                     "BYPASS"
                 } else {
-                    String.format(Locale.US, "%.1f W", kotlin.math.abs(batteryData.wattage))
+                    batteryData.formattedPower
                 }
                 Text(
                     text = wattageDisplay,

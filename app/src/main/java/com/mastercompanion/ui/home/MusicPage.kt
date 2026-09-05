@@ -938,7 +938,7 @@ private fun PortraitStandardView(
                 Spacer(modifier = Modifier.width(4.dp))
                 Column {
                     Text(
-                        text = "PLAYING FROM PLAYLIST",
+                        text = track.contextHeader,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.sp,
@@ -1742,7 +1742,7 @@ private fun LyricsModeView(
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
-                            text = "PLAYING FROM PLAYLIST",
+                            text = track.contextHeader,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 1.2.sp,
@@ -2002,7 +2002,7 @@ private fun LyricsModeView(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "PLAYING FROM PLAYLIST",
+                        text = track.contextHeader,
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 10.sp
